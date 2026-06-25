@@ -13,7 +13,7 @@ DATE_COLS = [
 
 
 def run_excel(path: str, project_id: int, db) -> dict:
-    df = pd.read_excel(path, sheet_name="MAPA_JUNTA", engine="pyxlsb", dtype=str)
+    df = pd.read_excel(path, sheet_name="MAPA_JUNTA", engine="pyxlsb", dtype=str, header=7)
     df.rename(columns={k: v for k, v in JOINTS_EXCEL_MAP.items() if k in df.columns}, inplace=True)
     return _load(df, project_id, db, source="EXCEL")
 
