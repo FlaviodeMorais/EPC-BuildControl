@@ -8,6 +8,7 @@ import JointListPage from './pages/JointListPage'
 import MtoPage from './pages/MtoPage'
 import ValvesPage from './pages/ValvesPage'
 import UploadPage from './pages/UploadPage'
+import LoginPage from './pages/LoginPage'
 
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } })
 
@@ -16,6 +17,7 @@ export default function App() {
     <QueryClientProvider client={qc}>
       <BrowserRouter>
         <Routes>
+          <Route path="login" element={<LoginPage />} />
           <Route element={<AppShell />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard"    element={<DashboardPage />} />
