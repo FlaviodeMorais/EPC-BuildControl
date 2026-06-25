@@ -1,5 +1,7 @@
 """Endpoints de válvulas."""
 
+import math
+from decimal import Decimal
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -8,6 +10,20 @@ from ...database import get_db
 from ...api.deps import get_current_user, require_role
 
 router = APIRouter(prefix="/projects/{project_id}/valves", tags=["valves"])
+
+NUMERIC_COLS = {"dn_mm","unit_weight_kg","qty_planned","qty_received",
+                "qty_reserved","qty_issued","weight_planned_kg","weight_received_kg"}
+
+
+def _safe(v):
+    if isinstance(v, Decimal):
+        f = float(v)
+        return None if (math.isnan(f) or math.isinf(f)) else f
+    return v
+
+
+def _row(r: dict) -> dict:
+    return {k: (_safe(v) if k in NUMERIC_COLS else v) for k, v in r.items()}
 
 
 @router.get("")
@@ -25,15 +41,15 @@ def list_valves(
 
     rows = db.execute(text(f"""
         SELECT id, valve_id_raw, description,
-               dn_mm::float, unit_weight_kg::float,
-               qty_planned::float, qty_received::float,
-               qty_reserved::float, qty_issued::float,
-               weight_planned_kg::float, weight_received_kg::float,
+               dn_mm, unit_weight_kg,
+               qty_planned, qty_received,
+               qty_reserved, qty_issued,
+               weight_planned_kg, weight_received_kg,
                availability
         FROM valves WHERE {' AND '.join(filters)}
-        ORDER BY availability, dn_mm, valve_id_raw
+        ORDER BY availability, dn_mm NULLS LAST, valve_id_raw
     """), params).mappings().all()
-    return [dict(r) for r in rows]
+    return [_row(dict(r)) for r in rows]
 
 
 @router.patch("/{valve_id}")
@@ -48,7 +64,6 @@ def update_valve(
     if not updates:
         return {"updated": 0}
 
-    # Recalcula availability se qtd atualizada
     if "qty_received" in updates:
         planned = db.execute(
             text("SELECT qty_planned FROM valves WHERE id = :id"), {"id": valve_id}
