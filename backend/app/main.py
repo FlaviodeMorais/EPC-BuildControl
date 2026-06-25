@@ -6,9 +6,13 @@ from .api.v1 import spools, joints, kpis, uploads, mto, valves
 
 app = FastAPI(title="Piping CMS", version="0.1.0")
 
+import os
+
+_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
