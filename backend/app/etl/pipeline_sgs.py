@@ -5,7 +5,7 @@ from sqlalchemy import text
 from .column_maps import SGS_MAP, SGER_TO_STATUS
 from .utils import clean_str, safe_numeric, delphi_date, split_spool_key, normalize_sger
 
-HEADER_ROW = 7   # linha 8 no Excel (0-indexed = 7)
+HEADER_ROW = 8   # linha 9 no Excel (0-indexed = 8)
 DATE_COLS = [
     "dt_lib_fab","dt_corte","dt_acoplamento","dt_soldagem","dt_vs",
     "dt_lib_end","dt_pintura","dt_embarque","dt_lib_mon",
