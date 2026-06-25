@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api.v1 import spools, joints, kpis, uploads, mto, valves, auth
+from .api.v1 import spools, joints, kpis, uploads, mto, valves, auth, ai, welders, ncr
 
 app = FastAPI(title="Piping CMS", version="0.1.0")
 
@@ -25,6 +25,9 @@ app.include_router(kpis.router,    prefix="/api/v1")
 app.include_router(uploads.router, prefix="/api/v1")
 app.include_router(mto.router,     prefix="/api/v1")
 app.include_router(valves.router,  prefix="/api/v1")
+app.include_router(ai.router,      prefix="/api/v1")
+app.include_router(welders.router, prefix="/api/v1")
+app.include_router(ncr.router,     prefix="/api/v1")
 
 
 @app.get("/health")

@@ -9,6 +9,8 @@ import MtoPage from './pages/MtoPage'
 import ValvesPage from './pages/ValvesPage'
 import UploadPage from './pages/UploadPage'
 import LoginPage from './pages/LoginPage'
+import WeldersPage from './pages/WeldersPage'
+import NcrPage from './pages/NcrPage'
 
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } })
 
@@ -20,13 +22,15 @@ export default function App() {
           <Route path="login" element={<LoginPage />} />
           <Route element={<AppShell />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard"    element={<DashboardPage />} />
-            <Route path="spools"       element={<SpoolListPage />} />
+            <Route path="dashboard"       element={<DashboardPage />} />
+            <Route path="spools"          element={<SpoolListPage />} />
             <Route path="spools/:spoolId" element={<SpoolDetailPage />} />
-            <Route path="joints"       element={<JointListPage />} />
-            <Route path="mto"          element={<MtoPage />} />
-            <Route path="valves"       element={<ValvesPage />} />
-            <Route path="uploads"      element={<UploadPage />} />
+            <Route path="joints"          element={<JointListPage />} />
+            <Route path="welders"         element={<WeldersPage />} />
+            <Route path="ncr"             element={<NcrPage />} />
+            <Route path="mto"             element={<MtoPage />} />
+            <Route path="valves"          element={<ValvesPage />} />
+            <Route path="uploads"         element={<UploadPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

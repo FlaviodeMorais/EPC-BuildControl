@@ -8,3 +8,4 @@ python-multipart==0.0.12
 pandas==2.2.3
 openpyxl==3.1.5
 pyxlsb==1.0.10
+anthropic>=0.40.0
