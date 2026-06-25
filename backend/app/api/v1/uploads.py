@@ -2,12 +2,12 @@
 
 import shutil
 from pathlib import Path
-from fastapi import APIRouter, Depends, UploadFile, File, Form, BackgroundTasks
+from fastapi import APIRouter, Depends, UploadFile, File, Form, BackgroundTasks, HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from ...database import get_db, SessionLocal
 from ...api.deps import require_role
-from ...etl import orchestrator
+from ...etl import orchestrator, pipeline_sgs, pipeline_mto, pipeline_valves, pipeline_joints
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -27,7 +27,6 @@ def upload_file(
     _=Depends(require_role("ADMIN")),
 ):
     if file_type not in ALLOWED_TYPES:
-        from fastapi import HTTPException
         raise HTTPException(400, f"file_type deve ser um de: {ALLOWED_TYPES}")
 
     dest = UPLOAD_DIR / f"{project_id}_{file_type}_{file.filename}"
@@ -69,25 +68,35 @@ def _run_etl(batch_id: int, project_id: int, file_type: str, path: str):
                    {"id": batch_id})
         db.commit()
 
-        if file_type == "DATABOOK_FULL":
+        if file_type == "SGS":
+            report = pipeline_sgs.run(path, project_id, db)
+        elif file_type == "MTO":
+            report = pipeline_mto.run(path, project_id, db)
+        elif file_type == "VALVULAS":
+            report = pipeline_valves.run(path, project_id, db)
+        elif file_type == "JOINTS":
+            report = pipeline_joints.run_excel(path, project_id, db)
+        elif file_type == "DATABOOK_FULL":
             report = orchestrator.run_full(project_id, db)
         else:
-            # pipelines individuais — a implementar por tipo
-            report = {"message": f"{file_type} não tem pipeline individual ainda"}
+            report = {"inserted_updated": 0, "errors": 0}
 
         db.execute(text("""
             UPDATE upload_batches
             SET status='COMPLETED', completed_at=NOW(),
-                rows_inserted=:ri, error_log=:log
+                rows_inserted=:ri, rows_errored=:re, error_log=:log
             WHERE id=:id
-        """), {"id": batch_id, "ri": report.get("joints_excel",{}).get("inserted_updated",0),
-               "log": str(report)})
+        """), {
+            "id": batch_id,
+            "ri": report.get("inserted_updated", 0),
+            "re": report.get("errors", 0),
+            "log": str(report.get("error_samples", [])),
+        })
         db.commit()
     except Exception as e:
         db.execute(text("""
             UPDATE upload_batches
-            SET status='FAILED', completed_at=NOW(), error_log=:err
-            WHERE id=:id
+            SET status='FAILED', completed_at=NOW(), error_log=:err WHERE id=:id
         """), {"id": batch_id, "err": str(e)})
         db.commit()
     finally:
