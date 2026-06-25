@@ -53,6 +53,21 @@ def list_uploads(project_id: int, db: Session = Depends(get_db), _=Depends(requi
     return list(rows)
 
 
+@router.delete("/reset-data")
+def reset_project_data(
+    project_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(require_role("ADMIN")),
+):
+    """Apaga todos os dados do projeto (spools, joints, mto_items, valves, histórico)."""
+    db.execute(text("""
+        TRUNCATE TABLE joints, mto_items, spools, valves, upload_batches
+        RESTART IDENTITY CASCADE
+    """))
+    db.commit()
+    return {"message": "Dados do projeto removidos com sucesso."}
+
+
 @router.get("/{batch_id}")
 def get_upload(project_id: int, batch_id: int, db: Session = Depends(get_db), _=Depends(require_role("ADMIN"))):
     row = db.execute(text("""

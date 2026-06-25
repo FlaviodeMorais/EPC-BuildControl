@@ -55,6 +55,11 @@ export default function UploadPage() {
     }
   }, [batches, qc])
 
+  const resetDb = useMutation({
+    mutationFn: () => api.delete(`/projects/${PROJECT_ID}/uploads/reset-data`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['uploads'] }),
+  })
+
   const upload = useMutation({
     mutationFn: (file: File) => {
       const form = new FormData()
@@ -71,7 +76,20 @@ export default function UploadPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold text-gray-800">Importar Dados</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-gray-800">Importar Dados</h1>
+        <button
+          onClick={() => {
+            if (confirm('Apagar TODOS os dados do projeto? Esta ação não pode ser desfeita.')) {
+              resetDb.mutate()
+            }
+          }}
+          disabled={resetDb.isPending}
+          className="text-xs px-3 py-1.5 rounded border border-red-300 text-red-600 hover:bg-red-50 transition disabled:opacity-50"
+        >
+          {resetDb.isPending ? 'Limpando...' : 'Limpar BD'}
+        </button>
+      </div>
 
       {/* Upload zone */}
       <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-6 space-y-4">
