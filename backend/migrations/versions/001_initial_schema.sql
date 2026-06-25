@@ -181,6 +181,31 @@ CREATE INDEX idx_mto_iso         ON mto_items(isometrico);
 CREATE INDEX idx_mto_type        ON mto_items(item_3d_type);
 
 -- ------------------------------------------------------------
+-- SOLDADORES
+-- Fonte: SOLD.csv (Databook)
+-- (declarado antes de joints por causa da FK)
+-- ------------------------------------------------------------
+CREATE TABLE welders (
+  id              SERIAL PRIMARY KEY,
+  project_id      INTEGER      NOT NULL REFERENCES projects(id),
+  sin             VARCHAR(20)  NOT NULL,
+  name            VARCHAR(100),
+  company         VARCHAR(50),
+  process         VARCHAR(10),
+  p_number        SMALLINT,
+  f_number        SMALLINT,
+  diam_min_mm     SMALLINT,
+  thickness_max_mm SMALLINT,
+  positions_qual  VARCHAR(10),
+  dt_qualification DATE,
+  dt_requalification DATE,
+  disqualified    BOOLEAN     DEFAULT FALSE,
+  rt_repair_index NUMERIC(5,2),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(project_id, sin)
+);
+
+-- ------------------------------------------------------------
 -- JUNTAS (soldas individuais)
 -- Fonte: MAPA_JUNTA xlsb (File 4) ~93k + JUNTAS.csv Databook
 -- ------------------------------------------------------------
@@ -247,30 +272,6 @@ CREATE INDEX idx_joints_status   ON joints(status);
 CREATE INDEX idx_joints_key      ON joints(joint_key);
 CREATE INDEX idx_joints_mat      ON joints(material);
 CREATE INDEX idx_joints_repair   ON joints(is_repair) WHERE is_repair = TRUE;
-
--- ------------------------------------------------------------
--- SOLDADORES
--- Fonte: SOLD.csv (Databook)
--- ------------------------------------------------------------
-CREATE TABLE welders (
-  id              SERIAL PRIMARY KEY,
-  project_id      INTEGER      NOT NULL REFERENCES projects(id),
-  sin             VARCHAR(20)  NOT NULL,  -- matrícula/crachá
-  name            VARCHAR(100),
-  company         VARCHAR(50),
-  process         VARCHAR(10),            -- GTAW, SMAW, FCAW...
-  p_number        SMALLINT,
-  f_number        SMALLINT,
-  diam_min_mm     SMALLINT,
-  thickness_max_mm SMALLINT,
-  positions_qual  VARCHAR(10),
-  dt_qualification DATE,
-  dt_requalification DATE,
-  disqualified    BOOLEAN     DEFAULT FALSE,
-  rt_repair_index NUMERIC(5,2),           -- índice de reparo acumulado
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE(project_id, sin)
-);
 
 -- ------------------------------------------------------------
 -- LOTES RX (radiografia)
