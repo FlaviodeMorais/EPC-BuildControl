@@ -24,13 +24,16 @@ def list_valves(
         params["avail"] = availability
 
     rows = db.execute(text(f"""
-        SELECT id, valve_id_raw, description, dn_mm, unit_weight_kg,
-               qty_planned, qty_received, qty_reserved, qty_issued,
-               weight_planned_kg, weight_received_kg, availability
+        SELECT id, valve_id_raw, description,
+               dn_mm::float, unit_weight_kg::float,
+               qty_planned::float, qty_received::float,
+               qty_reserved::float, qty_issued::float,
+               weight_planned_kg::float, weight_received_kg::float,
+               availability
         FROM valves WHERE {' AND '.join(filters)}
         ORDER BY availability, dn_mm, valve_id_raw
     """), params).mappings().all()
-    return list(rows)
+    return [dict(r) for r in rows]
 
 
 @router.patch("/{valve_id}")

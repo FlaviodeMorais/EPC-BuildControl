@@ -8,7 +8,7 @@ from .utils import clean_str, safe_numeric, delphi_date, normalize_sger
 CHUNK = 3000
 DATE_COLS = [
     "dt_corte","dt_acoplamento","dt_soldagem","dt_vs",
-    "dt_lib_end","dt_embarque","dt_prog_mon","dt_pre_mon","dt_montagem",
+    "dt_lib_end","dt_embarque","dt_prog_mon",
 ]
 
 
@@ -97,7 +97,7 @@ INSERT INTO joints (
   requires_tt, requires_ut, is_repair, sth, ieis, status,
   heat_number_1, heat_number_2, corrida_1, corrida_2, corrida_3, corrida_4,
   source, dt_corte, dt_acoplamento, dt_soldagem, dt_vs, dt_lib_end,
-  dt_embarque, dt_prog_mon, dt_pre_mon, dt_montagem
+  dt_embarque, dt_prog_mon
 ) VALUES (
   :project_id, :isometrico, :spool, :junta, CAST(:joint_type AS joint_type),
   :diameter_mm, :diameter_in, :thickness_mm, CAST(:material AS material_code),
@@ -105,7 +105,7 @@ INSERT INTO joints (
   :is_repair, :sth, :ieis, CAST(:status AS joint_status),
   :heat_number_1, :heat_number_2, :corrida_1, :corrida_2, :corrida_3, :corrida_4,
   :source, :dt_corte, :dt_acoplamento, :dt_soldagem, :dt_vs, :dt_lib_end,
-  :dt_embarque, :dt_prog_mon, :dt_pre_mon, :dt_montagem
+  :dt_embarque, :dt_prog_mon
 )
 ON CONFLICT (project_id, isometrico, spool, junta) DO UPDATE SET
   status       = EXCLUDED.status,
