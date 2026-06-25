@@ -117,7 +117,10 @@ export default function ValvesPage() {
                 Descrição
                 <ColInput value={col.desc} onChange={v => setCol(c => ({...c, desc: v}))} placeholder="filtrar..." />
               </th>
-              <th className="px-3 py-2 text-right">DN mm</th>
+              <th className="px-3 py-2 text-right">
+                DN mm
+                <ColInput value={col.dn} onChange={v => setCol(c => ({...c, dn: v}))} placeholder="filtrar..." align="right" />
+              </th>
               <th className="px-3 py-2 text-right">Peso Unit.</th>
               <th className="px-3 py-2 text-right">Qtd Prev.</th>
               <th className="px-3 py-2 text-right">Qtd Receb.</th>
