@@ -1,5 +1,3 @@
-"""Configurações da aplicação via variáveis de ambiente."""
-
 from pydantic_settings import BaseSettings
 
 
@@ -8,9 +6,12 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 480
     debug: bool = False
+    cors_origins: str = "http://localhost:5173"
+    anthropic_api_key: str = ""
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 
 settings = Settings()
