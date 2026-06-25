@@ -57,7 +57,10 @@ export default function ValvesPage() {
 
   const filtered = useMemo(() => {
     return valves.filter(v => {
-      if (col.id   && !String(v.valve_id_raw ?? '').toLowerCase().includes(col.id.toLowerCase())) return false
+      if (col.id) {
+        const tag = String((v as Record<string,unknown>).valve_tag ?? v.valve_id_raw ?? '').toLowerCase()
+        if (!tag.includes(col.id.toLowerCase())) return false
+      }
       if (col.desc && !String(v.description  ?? '').toLowerCase().includes(col.desc.toLowerCase())) return false
       if (col.dn   && !String(v.dn_mm        ?? '').includes(col.dn)) return false
       if (col.status) {
@@ -139,7 +142,7 @@ export default function ValvesPage() {
             )}
             {filtered.map(v => (
               <tr key={v.id} className="border-b border-gray-50 hover:bg-gray-50">
-                <td className="px-3 py-1.5 font-mono text-xs">{v.valve_id_raw}</td>
+                <td className="px-3 py-1.5 font-mono text-xs">{(v as Record<string,unknown>).valve_tag as string || v.valve_id_raw}</td>
                 <td className="px-3 py-1.5 text-xs text-gray-700 max-w-sm truncate" title={v.description}>{v.description}</td>
                 <td className="px-3 py-1.5 text-right text-xs">{v.dn_mm ?? '—'}</td>
                 <td className="px-3 py-1.5 text-right text-xs">{v.unit_weight_kg?.toLocaleString('pt-BR') ?? '—'}</td>

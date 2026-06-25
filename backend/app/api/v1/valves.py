@@ -40,7 +40,7 @@ def list_valves(
         params["avail"] = availability
 
     rows = db.execute(text(f"""
-        SELECT id, valve_id_raw, description,
+        SELECT id, valve_id_raw, valve_tag, description,
                dn_mm, unit_weight_kg,
                qty_planned, qty_received,
                qty_reserved, qty_issued,

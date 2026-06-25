@@ -64,6 +64,7 @@ SGS_MAP = {
 
 VALVES_MAP = {
     "ID":               "valve_id_raw",
+    "ID+I":             "valve_tag",
     "Descrição do Item":"description",
     "DN":               "dn_mm",
     "Peso Unit":        "unit_weight_kg",

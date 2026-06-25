@@ -28,6 +28,7 @@ def run(path: str, project_id: int, db) -> dict:
             db.execute(text(_UPSERT), {
                 "project_id":        project_id,
                 "valve_id_raw":      clean_str(row.get("valve_id_raw"), 100),
+                "valve_tag":         clean_str(row.get("valve_tag"), 50),
                 "description":       clean_str(row.get("description")),
                 "dn_mm":             safe_numeric(row.get("dn_mm")),
                 "unit_weight_kg":    safe_numeric(row.get("unit_weight_kg")),
@@ -49,10 +50,10 @@ def run(path: str, project_id: int, db) -> dict:
 
 
 _UPSERT = """
-INSERT INTO valves (project_id, valve_id_raw, description, dn_mm, unit_weight_kg,
+INSERT INTO valves (project_id, valve_id_raw, valve_tag, description, dn_mm, unit_weight_kg,
   qty_planned, qty_received, qty_reserved, qty_issued,
   weight_planned_kg, weight_received_kg, availability)
-VALUES (:project_id, :valve_id_raw, :description, :dn_mm, :unit_weight_kg,
+VALUES (:project_id, :valve_id_raw, :valve_tag, :description, :dn_mm, :unit_weight_kg,
   :qty_planned, :qty_received, :qty_reserved, :qty_issued,
   :weight_planned_kg, :weight_received_kg, :availability)
 ON CONFLICT DO NOTHING
