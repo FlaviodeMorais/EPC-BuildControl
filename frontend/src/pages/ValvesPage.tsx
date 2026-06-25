@@ -28,12 +28,12 @@ export default function ValvesPage() {
     queryFn: () => getValveAvailability(PROJECT_ID),
   })
 
-  const totals = valves.reduce(
-    (acc, v) => ({
-      planned: acc.planned + (v.qty_planned ?? 0),
-      received: acc.received + (v.qty_received ?? 0),
-      wPlanned: acc.wPlanned + (v.weight_planned_kg ?? 0),
-      wReceived: acc.wReceived + (v.weight_received_kg ?? 0),
+  const totals = (summary as Record<string, unknown>[]).reduce(
+    (acc, s) => ({
+      planned:   acc.planned   + Number(s.qtd_prevista  ?? 0),
+      received:  acc.received  + Number(s.qtd_recebida  ?? 0),
+      wPlanned:  acc.wPlanned  + Number(s.peso_previsto ?? 0),
+      wReceived: acc.wReceived + Number(s.peso_recebido ?? 0),
     }),
     { planned: 0, received: 0, wPlanned: 0, wReceived: 0 }
   )

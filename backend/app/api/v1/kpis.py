@@ -97,10 +97,11 @@ def s_curve(project_id: int, db: Session = Depends(get_db), _=Depends(get_curren
 def valve_availability(project_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
     rows = db.execute(text("""
         SELECT availability,
-               COUNT(*)              AS items,
-               SUM(qty_planned)      AS qtd_prevista,
-               SUM(qty_received)     AS qtd_recebida,
-               SUM(weight_planned_kg) AS peso_previsto
+               COUNT(*)                    AS items,
+               SUM(qty_planned)            AS qtd_prevista,
+               SUM(qty_received)           AS qtd_recebida,
+               SUM(weight_planned_kg)      AS peso_previsto,
+               SUM(weight_received_kg)     AS peso_recebido
         FROM valves WHERE project_id = :pid
         GROUP BY availability ORDER BY availability
     """), {"pid": project_id}).mappings().all()
