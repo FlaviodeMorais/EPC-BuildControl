@@ -99,10 +99,10 @@ INSERT INTO joints (
   source, dt_corte, dt_acoplamento, dt_soldagem, dt_vs, dt_lib_end,
   dt_embarque, dt_prog_mon, dt_pre_mon, dt_montagem
 ) VALUES (
-  :project_id, :isometrico, :spool, :junta, :joint_type::joint_type,
-  :diameter_mm, :diameter_in, :thickness_mm, :material::material_code,
-  :insp_level::insp_level, :pressure_class, :requires_tt, :requires_ut,
-  :is_repair, :sth, :ieis, :status::joint_status,
+  :project_id, :isometrico, :spool, :junta, CAST(:joint_type AS joint_type),
+  :diameter_mm, :diameter_in, :thickness_mm, CAST(:material AS material_code),
+  CAST(:insp_level AS insp_level), :pressure_class, :requires_tt, :requires_ut,
+  :is_repair, :sth, :ieis, CAST(:status AS joint_status),
   :heat_number_1, :heat_number_2, :corrida_1, :corrida_2, :corrida_3, :corrida_4,
   :source, :dt_corte, :dt_acoplamento, :dt_soldagem, :dt_vs, :dt_lib_end,
   :dt_embarque, :dt_prog_mon, :dt_pre_mon, :dt_montagem

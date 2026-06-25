@@ -71,8 +71,8 @@ INSERT INTO spools (
   dt_lib_end, dt_pintura, dt_embarque, dt_lib_mon,
   dt_prog_mon, dt_pre_mon, dt_montagem, dt_sth, dt_lavagem
 ) VALUES (
-  :project_id, :isometrico, :spool, :sger, :status::spool_status,
-  :manufacturer, :material::material_code, :diameter_mm, :thickness_mm,
+  :project_id, :isometrico, :spool, :sger, CAST(:status AS spool_status),
+  :manufacturer, CAST(:material AS material_code), :diameter_mm, :thickness_mm,
   :length_m, :weight_kg, :area_m2, :hold, :pct_fab, :pct_mon,
   :joints_total, :source,
   :dt_lib_fab, :dt_corte, :dt_acoplamento, :dt_soldagem, :dt_vs,
