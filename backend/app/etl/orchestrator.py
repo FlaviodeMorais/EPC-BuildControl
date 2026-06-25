@@ -7,12 +7,12 @@ from . import pipeline_sgs, pipeline_joints, pipeline_databook
 
 # Diretório dos CSVs extraídos do Databook
 DATABOOK_CSV_DIR = Path(
-    r"C:\Users\MORAIS\Documentos\GitHub\MTO-UGH\extracted_db"
+    r"C:\Users\MORAIS\Documentos\GitHub\MTO-UGH\Docs\extracted_db"
 )
 
 SOURCE_FILES = {
-    "SGS":     r"C:\Users\MORAIS\Documentos\GitHub\MTO-UGH\SGS-SGM - Toyo 08.10.2015_remanescente.xlsx",
-    "JOINTS":  r"C:\Users\MORAIS\Documentos\GitHub\MTO-UGH\01-Situação Geral de juntas_UGH_HC2-16-12-2025_PETROBRAS.xlsb",
+    "SGS":     r"C:\Users\MORAIS\Documentos\GitHub\MTO-UGH\Docs\SGS-SGM - Toyo 08.10.2015_remanescente.xlsx",
+    "JOINTS":  r"C:\Users\MORAIS\Documentos\GitHub\MTO-UGH\Docs\01-Situação Geral de juntas_UGH_HC2-16-12-2025_PETROBRAS.xlsb",
 }
 
 
