@@ -76,19 +76,30 @@ def holds(project_id: int, db: Session = Depends(get_db), _=Depends(get_current_
 
 @router.get("/s-curve")
 def s_curve(project_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
-    """Série histórica para curva S (fonte: progress_snapshots)."""
+    """Curva S acumulada de juntas por semana (fonte: tabela joints)."""
     rows = db.execute(text("""
-        SELECT snapshot_dt, unit_code, material,
-               SUM(n_total)    AS total,
-               SUM(n_welded)   AS soldado,
-               SUM(n_released) AS liberado,
-               SUM(n_cut)      AS cortado,
-               SUM(n_fitup)    AS acoplado,
-               SUM(p_total)    AS peso_total
-        FROM progress_snapshots
-        WHERE project_id = :pid
-        GROUP BY snapshot_dt, unit_code, material
-        ORDER BY snapshot_dt
+        WITH weeks AS (
+            SELECT generate_series(
+                date_trunc('week', MIN(LEAST(dt_corte, dt_acoplamento, dt_soldagem, dt_lib_end))),
+                date_trunc('week', GREATEST(MAX(dt_corte), MAX(dt_acoplamento),
+                                            MAX(dt_soldagem), MAX(dt_lib_end))),
+                '1 week'::interval
+            )::date AS semana
+            FROM joints WHERE project_id = :pid
+              AND LEAST(dt_corte, dt_acoplamento, dt_soldagem, dt_lib_end) IS NOT NULL
+        )
+        SELECT
+            to_char(w.semana, 'YYYY-MM-DD') AS snapshot_dt,
+            COUNT(*) FILTER (WHERE j.dt_corte     <= w.semana) AS cortado,
+            COUNT(*) FILTER (WHERE j.dt_acoplamento <= w.semana) AS acoplado,
+            COUNT(*) FILTER (WHERE j.dt_soldagem  <= w.semana) AS soldado,
+            COUNT(*) FILTER (WHERE j.dt_lib_end   <= w.semana) AS liberado
+        FROM weeks w
+        CROSS JOIN joints j
+        WHERE j.project_id = :pid
+          AND j.is_repair = FALSE
+        GROUP BY w.semana
+        ORDER BY w.semana
     """), {"pid": project_id}).mappings().all()
     return list(rows)
 
