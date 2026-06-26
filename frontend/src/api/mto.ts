@@ -6,6 +6,7 @@ export interface MtoItem {
   item_3d_name: string
   item_3d_type: string
   description: string
+  material_code_alt: string
   material_code_std: string
   material_spec: string
   diameter_nom_mm: number

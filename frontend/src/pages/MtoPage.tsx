@@ -60,6 +60,7 @@ export default function MtoPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr className="text-left text-xs text-gray-500">
+              <th className="px-3 py-2">ID</th>
               <th className="px-3 py-2">Item 3D</th>
               <th className="px-3 py-2">Tipo</th>
               <th className="px-3 py-2">Descrição</th>
@@ -74,11 +75,12 @@ export default function MtoPage() {
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan={10} className="text-center py-8 text-gray-400">Carregando...</td></tr>
+              <tr><td colSpan={11} className="text-center py-8 text-gray-400">Carregando...</td></tr>
             )}
             {data?.data.map(item => (
               <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50">
-                <td className="px-3 py-1.5 font-mono text-xs text-blue-700">{item.item_3d_name}</td>
+                <td className="px-3 py-1.5 font-mono text-xs text-blue-700">{item.material_code_alt}</td>
+                <td className="px-3 py-1.5 font-mono text-xs text-gray-700">{item.item_3d_name}</td>
                 <td className="px-3 py-1.5 text-xs">{item.item_3d_type}</td>
                 <td className="px-3 py-1.5 text-xs text-gray-600 max-w-xs truncate" title={item.description}>
                   {item.description}
