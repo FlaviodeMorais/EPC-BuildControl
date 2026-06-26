@@ -31,12 +31,24 @@ def overview(project_id: int, db: Session = Depends(get_db), _=Depends(get_curre
 
     joints = db.execute(text("""
         SELECT
-            COUNT(*)                                                AS total,
-            COUNT(*) FILTER (WHERE status = '30_LIBERADA')         AS liberadas,
-            COUNT(*) FILTER (WHERE is_repair = TRUE)               AS reparos,
-            COUNT(*) FILTER (WHERE requires_tt = TRUE)             AS com_tt,
-            COUNT(*) FILTER (WHERE requires_ut = TRUE)             AS com_ut
-        FROM joints WHERE project_id = :pid
+            COUNT(*)                                                    AS total,
+            COUNT(*) FILTER (WHERE dt_corte IS NOT NULL)               AS cortadas,
+            COUNT(*) FILTER (WHERE dt_acoplamento IS NOT NULL)         AS acopladas,
+            COUNT(*) FILTER (WHERE dt_soldagem IS NOT NULL)            AS soldadas,
+            COUNT(*) FILTER (WHERE status = '30_LIBERADA'
+                             OR dt_lib_end IS NOT NULL)                AS liberadas,
+            COUNT(*) FILTER (WHERE is_repair = TRUE)                   AS reparos,
+            COUNT(*) FILTER (WHERE requires_tt = TRUE)                 AS com_tt,
+            COUNT(*) FILTER (WHERE dt_tt IS NOT NULL)                  AS com_tt_feito,
+            COUNT(*) FILTER (WHERE lp_result_acab IS NOT NULL)         AS com_lp,
+            COUNT(*) FILTER (WHERE result_rx IS NOT NULL
+                             OR EXISTS (
+                               SELECT 1 FROM rt_lots r
+                               WHERE r.project_id = joints.project_id
+                                 AND r.isometrico = joints.isometrico
+                                 AND r.spool = joints.spool
+                                 AND r.junta = joints.junta))          AS com_rx
+        FROM joints WHERE project_id = :pid AND is_repair = FALSE
     """), {"pid": project_id}).mappings().first()
 
     return {"spools": dict(spools), "joints": dict(joints)}
