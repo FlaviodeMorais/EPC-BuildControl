@@ -1,27 +1,30 @@
-"""ETL: SGS-SGM Excel → tabela spools. Vectorized pandas + bulk upsert."""
+"""ETL: SGS-SGM Excel → tabela spools. Pandas vetorizado + execute_values (bulk real)."""
 
 import pandas as pd
 import numpy as np
-from sqlalchemy import text
+from psycopg2.extras import execute_values
 from .column_maps import SGS_MAP, SGER_TO_SPOOL_STATUS
-from .utils import clean_str, safe_numeric, delphi_date, split_spool_key, normalize_sger
+from .utils import delphi_date, normalize_sger, split_spool_key
 
 HEADER_ROW = 8
-CHUNK = 3000
+CHUNK = 5000
+
 DATE_COLS = [
     "dt_lib_fab","dt_corte","dt_acoplamento","dt_soldagem","dt_vs",
     "dt_lib_end","dt_pintura","dt_embarque","dt_lib_mon",
     "dt_prog_mon","dt_pre_mon","dt_montagem","dt_sth","dt_lavagem",
 ]
 
+STATUS_ORDER = ["NAO_INICIADO","EM_FABRICACAO","FABRICADO","EM_CAMPO","MONTADO","TESTADO"]
+_SO = {s: i for i, s in enumerate(STATUS_ORDER)}
 
-def _delphi_vec(series: pd.Series) -> pd.Series:
-    """Converte coluna de datas Delphi/Excel para date string ou None."""
-    def _cvt(v):
-        if pd.isna(v) or v in ('', 'nan', 'None'):
-            return None
-        return delphi_date(str(v))
-    return series.apply(_cvt)
+
+def _norm_status(val):
+    return SGER_TO_SPOOL_STATUS.get(normalize_sger(val) or "", "NAO_INICIADO")
+
+
+def _delphi_series(s: pd.Series) -> pd.Series:
+    return s.apply(lambda v: delphi_date(v) if pd.notna(v) and str(v) not in ('', 'nan') else None)
 
 
 def run(path: str, project_id: int, db, progress_cb=None) -> dict:
@@ -30,75 +33,68 @@ def run(path: str, project_id: int, db, progress_cb=None) -> dict:
     df = df.dropna(subset=["spool_key_raw"]).copy()
     df = df[df["spool_key_raw"].str.strip() != ""]
 
-    # Split spool_key vectorizado
-    split = df["spool_key_raw"].apply(lambda x: split_spool_key(x))
+    # Split spool_key
+    split = df["spool_key_raw"].apply(split_spool_key)
     df["isometrico"] = split.apply(lambda t: t[0])
     df["spool"]      = split.apply(lambda t: t[1])
     df = df.dropna(subset=["isometrico", "spool"])
     df = df[df["isometrico"].str.strip() != ""]
 
-    # Status vectorizado — usa sger (fab) e sgermon (montagem), avança para o mais alto
-    STATUS_ORDER = ["NAO_INICIADO","EM_FABRICACAO","FABRICADO","EM_CAMPO","MONTADO","TESTADO"]
-    def _spool_status(row):
-        s1 = SGER_TO_SPOOL_STATUS.get(normalize_sger(row.get("sger")) or "", "NAO_INICIADO")
-        s2 = SGER_TO_SPOOL_STATUS.get(normalize_sger(row.get("sgermon")) or "", "NAO_INICIADO")
-        return s1 if STATUS_ORDER.index(s1) >= STATUS_ORDER.index(s2) else s2
-    df["status"] = df.apply(_spool_status, axis=1)
+    # Status: maior entre sger (fab) e sgermon (montagem)
+    s1 = df["sger"].apply(_norm_status) if "sger" in df.columns else pd.Series("NAO_INICIADO", index=df.index)
+    s2 = df["sgermon"].apply(_norm_status) if "sgermon" in df.columns else pd.Series("NAO_INICIADO", index=df.index)
+    df["status"] = [a if _SO.get(a,0) >= _SO.get(b,0) else b for a, b in zip(s1, s2)]
 
-    # Campos numéricos
+    # Numéricos
     for col in ["diameter_mm","thickness_mm","length_m","weight_kg","area_m2","pct_fab","pct_mon","joints_total"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
     # Hold
-    df["hold"] = df.get("hold", pd.Series(False, index=df.index)).apply(
-        lambda v: str(v).strip() not in ("0","","nan","None","False")
-    )
+    hold_col = df.get("hold", pd.Series("", index=df.index)).fillna("")
+    df["hold"] = ~hold_col.astype(str).isin(["0","","nan","None","False"])
 
     # Datas
     for col in DATE_COLS:
-        if col in df.columns:
-            df[col] = _delphi_vec(df[col])
-        else:
-            df[col] = None
+        df[col] = _delphi_series(df[col]) if col in df.columns else None
 
-    # String cols — truncate
-    for col, maxlen in [("sger",100),("manufacturer",100),("material",2),("isometrico",30),("spool",10)]:
+    # Strings truncadas
+    for col, m in [("sger",100),("manufacturer",100),("material",2),("isometrico",30),("spool",10)]:
         if col in df.columns:
-            df[col] = df[col].where(df[col].notna(), None).apply(
-                lambda v, m=maxlen: str(v)[:m] if v is not None else None
-            )
+            df[col] = df[col].where(df[col].notna(), None).apply(lambda v, ml=m: str(v)[:ml] if v else None)
 
     df["project_id"] = project_id
     df["source"] = "SGS"
 
-    cols = [
-        "project_id","isometrico","spool","sger","status","manufacturer",
-        "material","diameter_mm","thickness_mm","length_m","weight_kg","area_m2",
-        "hold","pct_fab","pct_mon","joints_total","source",
-    ] + DATE_COLS
+    COLS = ["project_id","isometrico","spool","sger","status","manufacturer",
+            "material","diameter_mm","thickness_mm","length_m","weight_kg","area_m2",
+            "hold","pct_fab","pct_mon","joints_total","source"] + DATE_COLS
 
-    # Garante que todas colunas existam
-    for c in cols:
+    for c in COLS:
         if c not in df.columns:
             df[c] = None
 
-    records = df[cols].replace({np.nan: None}).to_dict("records")
+    records = [tuple(r) for r in df[COLS].replace({np.nan: None}).itertuples(index=False, name=None)]
+
+    # execute_values: 1 round-trip por chunk (não N round-trips)
+    raw = db.connection().connection  # psycopg2 raw connection
+    cur = raw.cursor()
     errors = []
     inserted = 0
 
     for i in range(0, len(records), CHUNK):
         chunk = records[i:i+CHUNK]
         try:
-            db.execute(text(_UPSERT_SQL), chunk)
-            db.commit()
+            execute_values(cur, _UPSERT_SQL, chunk, page_size=CHUNK)
+            raw.commit()
             inserted += len(chunk)
         except Exception as e:
-            db.rollback()
+            raw.rollback()
             errors.append(f"chunk {i}: {str(e)[:200]}")
         if progress_cb:
             progress_cb(inserted)
 
+    cur.close()
     return {"inserted_updated": inserted, "errors": len(errors), "error_samples": errors[:3]}
 
 
@@ -110,15 +106,7 @@ INSERT INTO spools (
   dt_lib_fab, dt_corte, dt_acoplamento, dt_soldagem, dt_vs,
   dt_lib_end, dt_pintura, dt_embarque, dt_lib_mon,
   dt_prog_mon, dt_pre_mon, dt_montagem, dt_sth, dt_lavagem
-) VALUES (
-  :project_id, :isometrico, :spool, :sger, CAST(:status AS spool_status),
-  :manufacturer, CAST(:material AS material_code), :diameter_mm, :thickness_mm,
-  :length_m, :weight_kg, :area_m2, :hold, :pct_fab, :pct_mon,
-  :joints_total, :source,
-  :dt_lib_fab, :dt_corte, :dt_acoplamento, :dt_soldagem, :dt_vs,
-  :dt_lib_end, :dt_pintura, :dt_embarque, :dt_lib_mon,
-  :dt_prog_mon, :dt_pre_mon, :dt_montagem, :dt_sth, :dt_lavagem
-)
+) VALUES %s
 ON CONFLICT (project_id, isometrico, spool) DO UPDATE SET
   sger         = EXCLUDED.sger,
   status       = EXCLUDED.status,

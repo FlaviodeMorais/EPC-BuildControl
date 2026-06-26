@@ -9,7 +9,7 @@ from ...database import get_db, SessionLocal
 from ...api.deps import require_role
 from ...etl import orchestrator, pipeline_sgs, pipeline_mto, pipeline_valves, pipeline_joints
 
-UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR = Path(__file__).resolve().parents[4] / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 router = APIRouter(prefix="/projects/{project_id}/uploads", tags=["uploads"])
