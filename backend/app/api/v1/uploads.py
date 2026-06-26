@@ -7,7 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from ...database import get_db, SessionLocal
 from ...api.deps import require_role
-from ...etl import pipeline_sgs, pipeline_mto, pipeline_valves, pipeline_joints, pipeline_databook, pipeline_tub
+from ...etl import pipeline_sgs, pipeline_mto, pipeline_valves, pipeline_joints, pipeline_databook, pipeline_tub, pipeline_inspectors
 
 UPLOAD_DIR = Path(__file__).resolve().parents[4] / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -119,6 +119,14 @@ def _run_etl(batch_id: int, project_id: int, file_type: str, path: str):
                 report = pipeline_joints.run_csv(path, project_id, db)
             elif "TUB" in fname:
                 report = pipeline_tub.run(path, project_id, db, progress_cb)
+            elif "INSP" in fname:
+                report = pipeline_inspectors.run_inspectors(path, project_id, db, progress_cb)
+            elif "BMSRX" in fname:
+                report = pipeline_inspectors.run_inspection_reports(path, "RX", project_id, db, progress_cb)
+            elif "BMSTT" in fname:
+                report = pipeline_inspectors.run_inspection_reports(path, "TT", project_id, db, progress_cb)
+            elif "BMSUS" in fname:
+                report = pipeline_inspectors.run_inspection_reports(path, "US", project_id, db, progress_cb)
             else:
                 report = {"inserted_updated": 0, "errors": 0,
                           "error_samples": [f"CSV não reconhecido: {Path(path).name}"]}
