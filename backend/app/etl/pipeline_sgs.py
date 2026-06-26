@@ -3,7 +3,7 @@
 import pandas as pd
 import numpy as np
 from sqlalchemy import text
-from .column_maps import SGS_MAP, SGER_TO_STATUS
+from .column_maps import SGS_MAP, SGER_TO_SPOOL_STATUS
 from .utils import clean_str, safe_numeric, delphi_date, split_spool_key, normalize_sger
 
 HEADER_ROW = 8
@@ -37,9 +37,13 @@ def run(path: str, project_id: int, db, progress_cb=None) -> dict:
     df = df.dropna(subset=["isometrico", "spool"])
     df = df[df["isometrico"].str.strip() != ""]
 
-    # Status vectorizado
-    df["_sger_norm"] = df["sger"].apply(lambda x: normalize_sger(x) if pd.notna(x) else None)
-    df["status"] = df["_sger_norm"].apply(lambda s: SGER_TO_STATUS.get(s, "NAO_INICIADO"))
+    # Status vectorizado — usa sger (fab) e sgermon (montagem), avança para o mais alto
+    STATUS_ORDER = ["NAO_INICIADO","EM_FABRICACAO","FABRICADO","EM_CAMPO","MONTADO","TESTADO"]
+    def _spool_status(row):
+        s1 = SGER_TO_SPOOL_STATUS.get(normalize_sger(row.get("sger")) or "", "NAO_INICIADO")
+        s2 = SGER_TO_SPOOL_STATUS.get(normalize_sger(row.get("sgermon")) or "", "NAO_INICIADO")
+        return s1 if STATUS_ORDER.index(s1) >= STATUS_ORDER.index(s2) else s2
+    df["status"] = df.apply(_spool_status, axis=1)
 
     # Campos numéricos
     for col in ["diameter_mm","thickness_mm","length_m","weight_kg","area_m2","pct_fab","pct_mon","joints_total"]:

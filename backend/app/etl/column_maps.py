@@ -59,6 +59,7 @@ SGS_MAP = {
     "sthdat":                        "dt_sth",
     "lavdat":                        "dt_lavagem",
     "sger":                          "sger",
+    "sgermon":                       "sgermon",
     "tjs":                           "joints_total",
 }
 
@@ -117,6 +118,75 @@ JOINTS_EXCEL_MAP = {
     "HT_NUMBER2":       "heat_number_2",
     "sger":             "status_raw",
     "IEIS":             "ieis",
+}
+
+# Mapeamento sger fabricação → spool_status (SGS)
+# spool_status enum: NAO_INICIADO, EM_FABRICACAO, FABRICADO, EM_CAMPO, MONTADO, TESTADO
+SGER_TO_SPOOL_STATUS = {
+    "02": "NAO_INICIADO",   # cancelado
+    "03": "EM_CAMPO",       # spool de campo
+    "05": "NAO_INICIADO",   # não alocado
+    "06": "NAO_INICIADO",   # não iniciado
+    "07": "EM_FABRICACAO",  # aguardando acoplamento
+    "08": "EM_FABRICACAO",  # aguardando soldagem (variante)
+    "09": "EM_FABRICACAO",  # aguardando VS fab
+    "10": "EM_FABRICACAO",  # aguardando soldagem
+    "11": "EM_FABRICACAO",  # em fabricação
+    "12": "EM_FABRICACAO",  # aguardando LP/PM
+    "13": "EM_FABRICACAO",  # aguardando liberação
+    "14": "EM_FABRICACAO",  # aguardando liberação lote
+    "15": "EM_FABRICACAO",  # aguardando RX/US
+    "16": "EM_FABRICACAO",  # aguardando reparo
+    "17": "EM_FABRICACAO",  # aguardando ferrita
+    "18": "EM_FABRICACAO",  # aguardando medição ferrita
+    "19": "EM_FABRICACAO",  # aguardando TT
+    "20": "EM_FABRICACAO",  # em processo
+    "21": "EM_FABRICACAO",  # aguardando PWHT
+    "22": "EM_FABRICACAO",  # aguardando inspeção
+    "23": "EM_FABRICACAO",  # aguardando cadastro
+    "24": "EM_FABRICACAO",  # aguardando dimensionamento
+    "25": "EM_FABRICACAO",  # aguardando suporte
+    "26": "EM_FABRICACAO",  # aguardando rastreabilidade
+    "27": "EM_FABRICACAO",  # aguardando LM
+    "28": "EM_FABRICACAO",  # aguardando liga
+    "29": "EM_FABRICACAO",  # aguardando cola
+    "30": "EM_FABRICACAO",  # aguardando pintura
+    "31": "EM_FABRICACAO",  # aguardando dimensional
+    "32": "EM_FABRICACAO",  # aguardando jato
+    "33": "EM_FABRICACAO",  # aguardando jato/pintura (FAB)
+    "34": "EM_FABRICACAO",  # aguardando jato/pintura fundo
+    "35": "EM_FABRICACAO",  # aguardando acabamento
+    "36": "FABRICADO",      # liberado para expedição / não iniciada montagem
+    "37": "FABRICADO",      # liberado para montagem
+    "38": "FABRICADO",      # aguardando cadastro LM
+    "39": "EM_CAMPO",       # aguardando recebimento liga (campo)
+    "40": "EM_CAMPO",       # aguardando soldagem campo
+    "41": "EM_CAMPO",       # em campo
+    "42": "EM_CAMPO",       # aguardando acoplamento campo
+    "43": "EM_CAMPO",       # aguardando VS campo
+    "44": "EM_CAMPO",       # aguardando RX campo
+    "45": "EM_CAMPO",       # aguardando VS campo
+    "46": "EM_CAMPO",       # aguardando TT campo
+    "47": "EM_CAMPO",       # aguardando RX/US campo
+    "48": "EM_CAMPO",       # aguardando LP/PM campo
+    "49": "EM_CAMPO",       # aguardando lib ROS/cola
+    "50": "MONTADO",        # montado
+    "51": "MONTADO",        # montagem concluída
+    "52": "MONTADO",        # aguardando RX/US montagem
+    "53": "MONTADO",        # aguardando LP
+    "54": "MONTADO",        # aguardando inspeção final
+    "55": "MONTADO",        # aguardando hidroteste
+    "56": "MONTADO",        # aguardando liberação final
+    "57": "MONTADO",        # aguardando suporte campo
+    "58": "MONTADO",        # aguardando dimensional campo
+    "59": "MONTADO",        # aguardando lib junta suporte
+    "60": "MONTADO",        # aguardando rastreabilidade campo
+    "61": "MONTADO",        # aguardando dimensional campo
+    "62": "MONTADO",        # aguardando pintura campo
+    "63": "MONTADO",        # aguardando suporte
+    "64": "TESTADO",        # testado
+    "65": "TESTADO",        # hidroteste concluído
+    "66": "TESTADO",        # liberado final
 }
 
 # Mapeamento dos códigos sger → enum joint_status
