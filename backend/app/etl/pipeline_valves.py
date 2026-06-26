@@ -6,7 +6,7 @@ from .column_maps import VALVES_MAP
 from .utils import clean_str, safe_numeric
 
 
-def run(path: str, project_id: int, db) -> dict:
+def run(path: str, project_id: int, db, progress_cb=None) -> dict:
     df = pd.read_excel(path, sheet_name=0, header=1, dtype=str)
     df.rename(columns={k: v for k, v in VALVES_MAP.items() if k in df.columns}, inplace=True)
     df.dropna(subset=["valve_id_raw"], inplace=True)
@@ -41,6 +41,8 @@ def run(path: str, project_id: int, db) -> dict:
                 "availability":      avail,
             })
             rows_ok += 1
+            if progress_cb and rows_ok % 100 == 0:
+                progress_cb(rows_ok)
         except Exception as e:
             rows_err += 1
             errors.append(str(e))

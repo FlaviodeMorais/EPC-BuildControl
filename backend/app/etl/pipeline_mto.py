@@ -9,7 +9,7 @@ from .utils import clean_str, safe_numeric
 CHUNK = 5000
 
 
-def run(path: str, project_id: int, db) -> dict:
+def run(path: str, project_id: int, db, progress_cb=None) -> dict:
     df = pd.read_excel(path, sheet_name=0, dtype=str)
     df.rename(columns={k: v for k, v in MTO_MAP.items() if k in df.columns}, inplace=True)
     df.dropna(subset=["item_3d_name"], inplace=True)
@@ -47,6 +47,8 @@ def run(path: str, project_id: int, db) -> dict:
 
         if len(buffer) >= CHUNK:
             _bulk_insert(buffer, db)
+            if progress_cb:
+                progress_cb(rows_ok)
             buffer.clear()
 
     if buffer:

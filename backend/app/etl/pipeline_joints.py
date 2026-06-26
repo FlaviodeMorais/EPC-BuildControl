@@ -12,10 +12,10 @@ DATE_COLS = [
 ]
 
 
-def run_excel(path: str, project_id: int, db) -> dict:
+def run_excel(path: str, project_id: int, db, progress_cb=None) -> dict:
     df = pd.read_excel(path, sheet_name="MAPA_JUNTA", engine="pyxlsb", dtype=str, header=7)
     df.rename(columns={k: v for k, v in JOINTS_EXCEL_MAP.items() if k in df.columns}, inplace=True)
-    return _load(df, project_id, db, source="EXCEL")
+    return _load(df, project_id, db, source="EXCEL", progress_cb=progress_cb)
 
 
 def run_csv(path: str, project_id: int, db) -> dict:
@@ -36,7 +36,7 @@ def run_csv(path: str, project_id: int, db) -> dict:
     return _load(df, project_id, db, source="DATABOOK")
 
 
-def _load(df: pd.DataFrame, project_id: int, db, source: str) -> dict:
+def _load(df: pd.DataFrame, project_id: int, db, source: str, progress_cb=None) -> dict:
     df = df.dropna(subset=["isometrico", "spool", "junta"])
     df = df[df["isometrico"].str.strip() != ""]
 
@@ -85,6 +85,8 @@ def _load(df: pd.DataFrame, project_id: int, db, source: str) -> dict:
 
     for i in range(0, len(records), CHUNK):
         db.execute(text(_UPSERT_SQL), records[i:i+CHUNK])
+        if progress_cb:
+            progress_cb(min(i + CHUNK, len(records)))
     db.commit()
 
     return {"inserted_updated": len(records), "errors": len(errors), "error_samples": errors[:3]}

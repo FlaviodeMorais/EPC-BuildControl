@@ -20,9 +20,9 @@ ALLOWED_TYPES = {"MTO", "SGS", "VALVULAS", "JOINTS", "DATABOOK_FULL"}
 @router.post("")
 def upload_file(
     project_id: int,
+    background: BackgroundTasks,
     file_type: str = Form(...),
     file: UploadFile = File(...),
-    background: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
     _=Depends(require_role("ADMIN")),
 ):
@@ -47,8 +47,8 @@ def upload_file(
 def list_uploads(project_id: int, db: Session = Depends(get_db), _=Depends(require_role("ADMIN"))):
     rows = db.execute(text("""
         SELECT id, file_type, original_name, status, rows_inserted,
-               rows_errored, started_at, completed_at, created_at
-        FROM upload_batches WHERE project_id = :pid ORDER BY created_at DESC
+               rows_errored, rows_processed, started_at, completed_at, created_at, error_log
+        FROM upload_batches WHERE project_id = :pid ORDER BY created_at DESC LIMIT 50
     """), {"pid": project_id}).mappings().all()
     return list(rows)
 
@@ -59,7 +59,6 @@ def reset_project_data(
     db: Session = Depends(get_db),
     _=Depends(require_role("ADMIN")),
 ):
-    """Apaga todos os dados do projeto (spools, joints, mto_items, valves, histórico)."""
     db.execute(text("""
         TRUNCATE TABLE joints, mto_items, spools, valves, upload_batches
         RESTART IDENTITY CASCADE
@@ -76,6 +75,17 @@ def get_upload(project_id: int, batch_id: int, db: Session = Depends(get_db), _=
     return dict(row) if row else {}
 
 
+def _progress(db, batch_id: int, processed: int):
+    """Atualiza contador de linhas processadas em tempo real."""
+    try:
+        db.execute(text(
+            "UPDATE upload_batches SET rows_processed=:n WHERE id=:id"
+        ), {"n": processed, "id": batch_id})
+        db.commit()
+    except Exception:
+        pass
+
+
 def _run_etl(batch_id: int, project_id: int, file_type: str, path: str):
     db = SessionLocal()
     try:
@@ -83,14 +93,16 @@ def _run_etl(batch_id: int, project_id: int, file_type: str, path: str):
                    {"id": batch_id})
         db.commit()
 
+        progress_cb = lambda n: _progress(db, batch_id, n)
+
         if file_type == "SGS":
-            report = pipeline_sgs.run(path, project_id, db)
+            report = pipeline_sgs.run(path, project_id, db, progress_cb)
         elif file_type == "MTO":
-            report = pipeline_mto.run(path, project_id, db)
+            report = pipeline_mto.run(path, project_id, db, progress_cb)
         elif file_type == "VALVULAS":
-            report = pipeline_valves.run(path, project_id, db)
+            report = pipeline_valves.run(path, project_id, db, progress_cb)
         elif file_type == "JOINTS":
-            report = pipeline_joints.run_excel(path, project_id, db)
+            report = pipeline_joints.run_excel(path, project_id, db, progress_cb)
         elif file_type == "DATABOOK_FULL":
             report = orchestrator.run_full(project_id, db)
         else:
@@ -99,7 +111,7 @@ def _run_etl(batch_id: int, project_id: int, file_type: str, path: str):
         db.execute(text("""
             UPDATE upload_batches
             SET status='COMPLETED', completed_at=NOW(),
-                rows_inserted=:ri, rows_errored=:re, error_log=:log
+                rows_inserted=:ri, rows_errored=:re, rows_processed=:ri, error_log=:log
             WHERE id=:id
         """), {
             "id": batch_id,

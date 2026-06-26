@@ -14,7 +14,7 @@ DATE_COLS = [
 ]
 
 
-def run(path: str, project_id: int, db) -> dict:
+def run(path: str, project_id: int, db, progress_cb=None) -> dict:
     df = pd.read_excel(path, sheet_name="SGS", header=HEADER_ROW, dtype=str)
     df.rename(columns={k: v for k, v in SGS_MAP.items() if k in df.columns}, inplace=True)
     df.dropna(subset=["spool_key_raw"], inplace=True)
@@ -57,6 +57,8 @@ def run(path: str, project_id: int, db) -> dict:
     # Bulk upsert em chunks
     for i in range(0, len(records), CHUNK):
         db.execute(text(_UPSERT_SQL), records[i:i+CHUNK])
+        if progress_cb:
+            progress_cb(min(i + CHUNK, len(records)))
     db.commit()
 
     return {"inserted_updated": len(records), "errors": len(errors), "error_samples": errors[:3]}
