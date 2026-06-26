@@ -92,21 +92,32 @@ export default function DashboardPage() {
 
       {/* KPI Row 2 — Juntas */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Juntas Soldadas</p>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Juntas de Solda</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KpiCard label="Total"       value={fmt(joTotal)} color="blue" />
-          <KpiCard label="Liberadas"   value={fmt(jo?.liberadas ?? 0)}
+          <KpiCard label="Total"    value={fmt(joTotal)} color="blue" />
+          <KpiCard label="Soldadas" value={fmt(jo?.soldadas ?? 0)}
+            sub={`${pct(jo?.soldadas ?? 0, joTotal)}%`} color="blue" />
+          <KpiCard label="Liberadas" value={fmt(jo?.liberadas ?? 0)}
             sub={`${pct(jo?.liberadas ?? 0, joTotal)}%`} color="green" />
-          <KpiCard label="Reparos"     value={fmt(jo?.reparos ?? 0)} color="yellow" />
-          <KpiCard label="Com TT"      value={fmt(jo?.com_tt ?? 0)} color="gray" />
+          <KpiCard label="Com TT"   value={fmt(jo?.com_tt ?? 0)}
+            sub={`Feito: ${fmt(jo?.com_tt_feito ?? 0)}`} color="gray" />
         </div>
         {jo && (
-          <div className="mt-2 bg-white rounded-lg border border-gray-100 p-3">
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
-              <span>Juntas Liberadas</span>
-              <span>{pct(jo.liberadas, joTotal)}%</span>
-            </div>
-            <ProgressBar value={jo.liberadas} max={joTotal} color="bg-green-500" />
+          <div className="mt-2 bg-white rounded-lg border border-gray-100 p-3 space-y-2">
+            {[
+              { label: 'Cortadas',   value: jo.cortadas,   color: 'bg-orange-400' },
+              { label: 'Acopladas',  value: jo.acopladas,  color: 'bg-purple-400' },
+              { label: 'Soldadas',   value: jo.soldadas,   color: 'bg-blue-500' },
+              { label: 'Liberadas',  value: jo.liberadas,  color: 'bg-green-500' },
+            ].map(({ label, value, color }) => (
+              <div key={label}>
+                <div className="flex justify-between text-xs text-gray-500 mb-0.5">
+                  <span>{label}</span>
+                  <span>{fmt(value)} ({pct(value, joTotal)}%)</span>
+                </div>
+                <ProgressBar value={value} max={joTotal} color={color} />
+              </div>
+            ))}
           </div>
         )}
       </div>
