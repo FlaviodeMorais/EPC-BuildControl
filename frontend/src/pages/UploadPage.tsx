@@ -119,7 +119,7 @@ export default function UploadPage() {
   const { data: batches = [] } = useQuery<Batch[]>({
     queryKey: ['uploads'],
     queryFn: () => api.get(`/projects/${PROJECT_ID}/uploads`).then(r => r.data),
-    refetchInterval: (query) => hasRunning(query.state.data ?? []) ? 1500 : false,
+    refetchInterval: (query) => hasRunning(query.state.data ?? []) ? 3000 : false,
   })
 
   const resetDb = useMutation({
