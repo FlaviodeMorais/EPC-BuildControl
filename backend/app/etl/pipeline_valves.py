@@ -1,62 +1,55 @@
-"""ETL: SGS-SGM_VALVULAS Excel → tabela valves."""
+"""ETL: SGS-SGM_VALVULAS Excel → tabela valves. Pandas vetorizado + bulk_upsert."""
 
 import pandas as pd
-from sqlalchemy import text
+import numpy as np
 from .column_maps import VALVES_MAP
-from .utils import clean_str, safe_numeric
+from .bulk import bulk_upsert
 
 
 def run(path: str, project_id: int, db, progress_cb=None) -> dict:
     df = pd.read_excel(path, sheet_name=0, header=1, dtype=str)
     df.rename(columns={k: v for k, v in VALVES_MAP.items() if k in df.columns}, inplace=True)
-    df.dropna(subset=["valve_id_raw"], inplace=True)
+    df = df.dropna(subset=["valve_id_raw"]).copy()
 
-    rows_ok = rows_err = 0
-    errors = []
+    # Numéricos
+    for col in ["dn_mm","unit_weight_kg","qty_planned","qty_received",
+                "qty_reserved","qty_issued","weight_planned_kg","weight_received_kg"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
-    for _, row in df.iterrows():
-        try:
-            qty_p = safe_numeric(row.get("qty_planned")) or 0
-            qty_r = safe_numeric(row.get("qty_received")) or 0
-            if qty_r >= qty_p and qty_p > 0:
-                avail = "AVAILABLE"
-            elif qty_r > 0:
-                avail = "PARTIAL"
-            else:
-                avail = "MISSING"
+    # Availability vetorizado
+    p = df["qty_planned"].fillna(0)
+    r = df["qty_received"].fillna(0)
+    df["availability"] = np.where(
+        (r >= p) & (p > 0), "AVAILABLE",
+        np.where(r > 0, "PARTIAL", "MISSING")
+    )
 
-            db.execute(text(_UPSERT), {
-                "project_id":        project_id,
-                "valve_id_raw":      clean_str(row.get("valve_id_raw"), 100),
-                "valve_tag":         clean_str(row.get("valve_tag"), 50),
-                "description":       clean_str(row.get("description")),
-                "dn_mm":             safe_numeric(row.get("dn_mm")),
-                "unit_weight_kg":    safe_numeric(row.get("unit_weight_kg")),
-                "qty_planned":       qty_p,
-                "qty_received":      qty_r,
-                "qty_reserved":      safe_numeric(row.get("qty_reserved")) or 0,
-                "qty_issued":        safe_numeric(row.get("qty_issued")) or 0,
-                "weight_planned_kg": safe_numeric(row.get("weight_planned_kg")) or 0,
-                "weight_received_kg": safe_numeric(row.get("weight_received_kg")) or 0,
-                "availability":      avail,
-            })
-            rows_ok += 1
-            if progress_cb and rows_ok % 100 == 0:
-                progress_cb(rows_ok)
-        except Exception as e:
-            rows_err += 1
-            errors.append(str(e))
+    # Strings
+    for col, m in [("valve_id_raw",100),("valve_tag",50)]:
+        if col in df.columns:
+            df[col] = df[col].where(df[col].notna(), None).apply(lambda v, ml=m: str(v)[:ml] if v else None)
+    if "description" in df.columns:
+        df["description"] = df["description"].where(df["description"].notna(), None)
 
-    db.commit()
-    return {"inserted_updated": rows_ok, "errors": rows_err, "error_samples": errors[:5]}
+    df["project_id"] = project_id
+
+    COLS = ["project_id","valve_id_raw","valve_tag","description","dn_mm","unit_weight_kg",
+            "qty_planned","qty_received","qty_reserved","qty_issued",
+            "weight_planned_kg","weight_received_kg","availability"]
+    for c in COLS:
+        if c not in df.columns:
+            df[c] = None
+
+    records = [tuple(r) for r in df[COLS].replace({np.nan: None}).itertuples(index=False, name=None)]
+    inserted, errors = bulk_upsert(_UPSERT, records, chunk_size=5000, progress_cb=progress_cb)
+    return {"inserted_updated": inserted, "errors": len(errors), "error_samples": errors[:5]}
 
 
 _UPSERT = """
 INSERT INTO valves (project_id, valve_id_raw, valve_tag, description, dn_mm, unit_weight_kg,
   qty_planned, qty_received, qty_reserved, qty_issued,
   weight_planned_kg, weight_received_kg, availability)
-VALUES (:project_id, :valve_id_raw, :valve_tag, :description, :dn_mm, :unit_weight_kg,
-  :qty_planned, :qty_received, :qty_reserved, :qty_issued,
-  :weight_planned_kg, :weight_received_kg, :availability)
+VALUES %s
 ON CONFLICT DO NOTHING
 """

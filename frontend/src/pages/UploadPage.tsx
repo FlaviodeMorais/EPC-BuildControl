@@ -178,12 +178,6 @@ export default function UploadPage() {
             onChange={e => { const f = e.target.files?.[0]; if (f) upload.mutate(f) }} />
         </div>
 
-        {upload.isSuccess && !upload.isPending && (
-          <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded p-3">
-            <span>✓</span>
-            <span>Arquivo enviado. ETL em processamento — acompanhe abaixo.</span>
-          </div>
-        )}
         {upload.isError && (
           <div className="text-sm text-red-600 bg-red-50 rounded p-3">
             ✕ Erro ao enviar arquivo. Verifique o tipo selecionado.
