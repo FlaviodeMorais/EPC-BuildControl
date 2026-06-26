@@ -7,7 +7,8 @@ from .utils import delphi_date, normalize_sger
 from .bulk import bulk_upsert
 
 CHUNK = 5000
-DATE_COLS = ["dt_corte","dt_acoplamento","dt_soldagem","dt_vs","dt_lib_end","dt_embarque","dt_prog_mon"]
+DATE_COLS = ["dt_corte","dt_acoplamento","dt_soldagem","dt_vs","dt_lib_end","dt_embarque","dt_prog_mon","dt_lp","dt_rx","dt_tt"]
+RESULT_COLS = ["result_rx","result_lp","result_vs","result_us","result_tt"]
 
 
 def run_excel(path: str, project_id: int, db, progress_cb=None) -> dict:
@@ -47,7 +48,13 @@ def run_csv(path: str, project_id: int, db) -> dict:
 def _load(df: pd.DataFrame, project_id: int, db, source: str, progress_cb=None) -> dict:
     df = df.dropna(subset=["isometrico","spool","junta"]).copy()
     df = df[df["isometrico"].str.strip() != ""]
-    df = df.drop_duplicates(subset=["isometrico","spool","junta"])
+    # Prioriza linha com resultado END preenchido (mantém última após sort)
+    result_cols_present = [c for c in RESULT_COLS if c in df.columns]
+    if result_cols_present:
+        df["_has_result"] = df[result_cols_present].notna().any(axis=1)
+        df = df.sort_values("_has_result").drop_duplicates(subset=["isometrico","spool","junta"], keep="last").drop(columns=["_has_result"])
+    else:
+        df = df.drop_duplicates(subset=["isometrico","spool","junta"])
 
     # Status
     src = df.get("status_raw", df.get("sger", pd.Series(None, index=df.index)))
@@ -85,6 +92,12 @@ def _load(df: pd.DataFrame, project_id: int, db, source: str, progress_cb=None) 
         else:
             df[col] = None
 
+    for col in RESULT_COLS:
+        if col in df.columns:
+            df[col] = df[col].where(df[col].notna(), None).apply(lambda v: str(v)[:1] if v else None)
+        else:
+            df[col] = None
+
     df["project_id"] = project_id
     df["source"] = source
 
@@ -92,7 +105,7 @@ def _load(df: pd.DataFrame, project_id: int, db, source: str, progress_cb=None) 
             "diameter_in","thickness_mm","material","insp_level","pressure_class",
             "requires_tt","requires_ut","is_repair","sth","ieis","status",
             "heat_number_1","heat_number_2","corrida_1","corrida_2","corrida_3","corrida_4",
-            "source"] + DATE_COLS
+            "source"] + DATE_COLS + RESULT_COLS
 
     for c in COLS:
         if c not in df.columns:
@@ -110,7 +123,8 @@ INSERT INTO joints (
   requires_tt, requires_ut, is_repair, sth, ieis, status,
   heat_number_1, heat_number_2, corrida_1, corrida_2, corrida_3, corrida_4,
   source, dt_corte, dt_acoplamento, dt_soldagem, dt_vs, dt_lib_end,
-  dt_embarque, dt_prog_mon
+  dt_embarque, dt_prog_mon, dt_lp, dt_rx, dt_tt,
+  result_rx, result_lp, result_vs, result_us, result_tt
 ) VALUES %s
 ON CONFLICT (project_id, isometrico, spool, junta) DO UPDATE SET
   status      = EXCLUDED.status,
@@ -119,6 +133,14 @@ ON CONFLICT (project_id, isometrico, spool, junta) DO UPDATE SET
   requires_tt = EXCLUDED.requires_tt,
   is_repair   = EXCLUDED.is_repair,
   dt_soldagem = COALESCE(EXCLUDED.dt_soldagem, joints.dt_soldagem),
+  dt_acoplamento = COALESCE(EXCLUDED.dt_acoplamento, joints.dt_acoplamento),
   dt_lib_end  = COALESCE(EXCLUDED.dt_lib_end, joints.dt_lib_end),
+  dt_lp       = COALESCE(EXCLUDED.dt_lp, joints.dt_lp),
+  dt_rx       = COALESCE(EXCLUDED.dt_rx, joints.dt_rx),
+  dt_tt       = COALESCE(EXCLUDED.dt_tt, joints.dt_tt),
+  result_rx   = COALESCE(EXCLUDED.result_rx, joints.result_rx),
+  result_lp   = COALESCE(EXCLUDED.result_lp, joints.result_lp),
+  result_vs   = COALESCE(EXCLUDED.result_vs, joints.result_vs),
+  result_tt   = COALESCE(EXCLUDED.result_tt, joints.result_tt),
   updated_at  = NOW()
 """
