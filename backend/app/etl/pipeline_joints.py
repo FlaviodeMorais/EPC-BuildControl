@@ -2,9 +2,9 @@
 
 import pandas as pd
 import numpy as np
-from psycopg2.extras import execute_values
 from .column_maps import JOINTS_EXCEL_MAP, SGER_TO_STATUS
 from .utils import delphi_date, normalize_sger
+from .bulk import bulk_upsert
 
 CHUNK = 5000
 DATE_COLS = ["dt_corte","dt_acoplamento","dt_soldagem","dt_vs","dt_lib_end","dt_embarque","dt_prog_mon"]
@@ -87,25 +87,7 @@ def _load(df: pd.DataFrame, project_id: int, db, source: str, progress_cb=None) 
             df[c] = None
 
     records = [tuple(r) for r in df[COLS].replace({np.nan: None}).itertuples(index=False, name=None)]
-
-    raw = db.connection().connection
-    cur = raw.cursor()
-    errors = []
-    inserted = 0
-
-    for i in range(0, len(records), CHUNK):
-        chunk = records[i:i+CHUNK]
-        try:
-            execute_values(cur, _UPSERT_SQL, chunk, page_size=CHUNK)
-            raw.commit()
-            inserted += len(chunk)
-        except Exception as e:
-            raw.rollback()
-            errors.append(f"chunk {i}: {str(e)[:200]}")
-        if progress_cb:
-            progress_cb(inserted)
-
-    cur.close()
+    inserted, errors = bulk_upsert(_UPSERT_SQL, records, chunk_size=CHUNK, progress_cb=progress_cb)
     return {"inserted_updated": inserted, "errors": len(errors), "error_samples": errors[:3]}
 
 
