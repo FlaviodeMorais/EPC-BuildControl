@@ -9,7 +9,14 @@ CHUNK = 5000
 
 
 def _read(path: str) -> pd.DataFrame:
-    return pd.read_csv(path, dtype=str, encoding="utf-8-sig")
+    for enc in ("utf-8-sig", "latin-1", "cp1252"):
+        try:
+            df = pd.read_csv(path, dtype=str, encoding=enc, on_bad_lines="skip")
+            df.columns = [c.lstrip("﻿").strip() for c in df.columns]
+            return df
+        except UnicodeDecodeError:
+            continue
+    raise ValueError(f"Não foi possível decodificar: {path}")
 
 
 def _str(df, col, maxlen=None):
@@ -176,7 +183,8 @@ def run_progress_snapshots(path: str, project_id: int, db, progress_cb=None) -> 
     df = _read(path).dropna(subset=["DATA","UNI"]).copy()
 
     df["project_id"]   = project_id
-    df["snapshot_dt"]  = df["DATA"].apply(julian_date)
+    df["snapshot_dt"] = pd.to_datetime(df["DATA"], errors="coerce").dt.date
+    df["snapshot_dt"] = df["snapshot_dt"].where(df["snapshot_dt"].notna(), df["DATA"].apply(julian_date))
     df = df.dropna(subset=["snapshot_dt"])
     df["unit_code"]    = _str(df, "UNI", 10)
     df["area_code"]    = _str(df, "AREA", 10)

@@ -17,7 +17,13 @@ def run_excel(path: str, project_id: int, db, progress_cb=None) -> dict:
 
 
 def run_csv(path: str, project_id: int, db) -> dict:
-    df = pd.read_csv(path, dtype=str, encoding="utf-8-sig")
+    for enc in ("utf-8-sig", "latin-1", "cp1252"):
+        try:
+            df = pd.read_csv(path, dtype=str, encoding=enc, on_bad_lines="skip")
+            break
+        except UnicodeDecodeError:
+            continue
+    df.columns = [c.lstrip("﻿").strip() for c in df.columns]
     paradox_map = {
         "Isometrico":"isometrico","Spool":"spool","Junta":"junta",
         "CBTP":"joint_type","CBDI":"diameter_mm","CBESP":"thickness_mm",
@@ -25,9 +31,13 @@ def run_csv(path: str, project_id: int, db) -> dict:
         "corrida1":"corrida_1","corrida2":"corrida_2","corrida3":"corrida_3","corrida4":"corrida_4",
         "HT_NUMBER1":"heat_number_1","HT_NUMBER2":"heat_number_2",
         "DTSOLD":"dt_soldagem","DTAJU":"dt_acoplamento","DTVS":"dt_vs",
+        "DtLib":"dt_lib_end","DTLP1":"dt_lp","DTRX":"dt_rx","DTTT":"dt_tt",
+        "RX1LD":"result_rx","LP1RC":"result_lp","VSL":"result_vs",
+        "SGER":"status_raw","IEIS":"ieis","RX_US":"ndt_method",
+        "ASRAIZ":"welder_root_sin","ASENCH":"welder_fill_sin",
     }
     df.rename(columns=paradox_map, inplace=True)
-    for col in ["dt_soldagem","dt_acoplamento","dt_vs"]:
+    for col in ["dt_soldagem","dt_acoplamento","dt_vs","dt_lib_end","dt_lp","dt_rx","dt_tt"]:
         if col in df.columns:
             df[col] = df[col].apply(delphi_date)
     return _load(df, project_id, db, source="DATABOOK")

@@ -17,7 +17,7 @@ def delphi_date(value: Any) -> date | None:
         if v <= 0 or v == -32768:
             return None
         return DELPHI_EPOCH + timedelta(days=v)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
