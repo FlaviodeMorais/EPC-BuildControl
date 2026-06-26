@@ -155,7 +155,7 @@ export default function DashboardPage() {
           <tbody>
             {(byUnit as Record<string, unknown>[]).map((r, i) => (
               <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                <td className="px-4 py-2 font-mono text-xs font-medium">{String(r.unit)}/{String(r.sub_unit)}</td>
+                <td className="px-4 py-2 font-mono text-xs font-medium">{String(r.unit)}{r.sub_unit ? `/${r.sub_unit}` : ''}</td>
                 <td className="px-4 py-2 text-right text-xs">{fmt(Number(r.spools))}</td>
                 <td className="px-4 py-2 text-right text-blue-600 text-xs">{fmt(Number(r.fabricado))}</td>
                 <td className="px-4 py-2 text-right text-green-600 text-xs">{fmt(Number(r.montado))}</td>
