@@ -8,8 +8,11 @@ from .bulk import bulk_upsert
 CHUNK = 5000
 
 
+_PSEUDO_BOM = '\xef\xbb\xbf'  # UTF-8 BOM double-encoded as Latin-1 then re-encoded as UTF-8
+
+
 def _strip_bom(s: str) -> str:
-    return s.encode("utf-8").lstrip(b"\xef\xbb\xbf").decode("utf-8").strip()
+    return s.removeprefix(_PSEUDO_BOM).removeprefix('﻿').strip()
 
 
 def _read(path: str) -> pd.DataFrame:
