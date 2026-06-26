@@ -7,8 +7,11 @@ from .utils import delphi_date, normalize_sger
 from .bulk import bulk_upsert
 
 CHUNK = 5000
-DATE_COLS = ["dt_corte","dt_acoplamento","dt_soldagem","dt_vs","dt_lib_end","dt_embarque","dt_prog_mon","dt_lp","dt_rx","dt_tt"]
-RESULT_COLS = ["result_rx","result_lp","result_vs","result_us","result_tt"]
+DATE_COLS = ["dt_corte","dt_acoplamento","dt_soldagem","dt_soldagem_r1","dt_soldagem_r2",
+             "dt_vs","dt_tt","dt_du","dt_us","dt_lp","dt_rx","dt_lib_end",
+             "dt_embarque","dt_prog_mon","dt_montagem"]
+RESULT_COLS = ["result_rx","result_lp","result_vs","result_us","result_tt","result_du",
+               "lp_result_acab","lp_result_pre_tt"]
 
 
 def run_excel(path: str, project_id: int, db, progress_cb=None) -> dict:
@@ -86,7 +89,10 @@ def _load(df: pd.DataFrame, project_id: int, db, source: str, progress_cb=None) 
     for col, m in [("isometrico",30),("spool",10),("junta",10),("joint_type",5),("material",2),
                    ("insp_level",1),("pressure_class",5),("sth",50),("ieis",20),
                    ("heat_number_1",20),("heat_number_2",20),
-                   ("corrida_1",20),("corrida_2",20),("corrida_3",20),("corrida_4",20)]:
+                   ("corrida_1",20),("corrida_2",20),("corrida_3",20),("corrida_4",20),
+                   ("welder_root_sin",20),("welder_fill_sin",20),
+                   ("proc_raiz",10),("proc_ench",10),("ndt_method",10),
+                   ("manufacturer",100),("fluid",50)]:
         if col in df.columns:
             df[col] = df[col].where(df[col].notna(), None).apply(lambda v, ml=m: str(v)[:ml] if v else None)
         else:
@@ -98,12 +104,27 @@ def _load(df: pd.DataFrame, project_id: int, db, source: str, progress_cb=None) 
         else:
             df[col] = None
 
+    # Numéricos extras
+    for col in ["lt_raiz","lt_ench"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+        else:
+            df[col] = None
+
+    # obs (texto livre)
+    if "obs" in df.columns:
+        df["obs"] = df["obs"].where(df["obs"].notna(), None)
+    else:
+        df["obs"] = None
+
     df["project_id"] = project_id
     df["source"] = source
 
     COLS = ["project_id","isometrico","spool","junta","joint_type","diameter_mm",
             "diameter_in","thickness_mm","material","insp_level","pressure_class",
             "requires_tt","requires_ut","is_repair","sth","ieis","status",
+            "welder_root_sin","welder_fill_sin","proc_raiz","proc_ench",
+            "lt_raiz","lt_ench","ndt_method","manufacturer","fluid","obs",
             "heat_number_1","heat_number_2","corrida_1","corrida_2","corrida_3","corrida_4",
             "source"] + DATE_COLS + RESULT_COLS
 
@@ -121,26 +142,50 @@ INSERT INTO joints (
   project_id, isometrico, spool, junta, joint_type, diameter_mm,
   diameter_in, thickness_mm, material, insp_level, pressure_class,
   requires_tt, requires_ut, is_repair, sth, ieis, status,
+  welder_root_sin, welder_fill_sin, proc_raiz, proc_ench,
+  lt_raiz, lt_ench, ndt_method, manufacturer, fluid, obs,
   heat_number_1, heat_number_2, corrida_1, corrida_2, corrida_3, corrida_4,
-  source, dt_corte, dt_acoplamento, dt_soldagem, dt_vs, dt_lib_end,
-  dt_embarque, dt_prog_mon, dt_lp, dt_rx, dt_tt,
-  result_rx, result_lp, result_vs, result_us, result_tt
+  source,
+  dt_corte, dt_acoplamento, dt_soldagem, dt_soldagem_r1, dt_soldagem_r2,
+  dt_vs, dt_tt, dt_du, dt_us, dt_lp, dt_rx, dt_lib_end,
+  dt_embarque, dt_prog_mon, dt_montagem,
+  result_rx, result_lp, result_vs, result_us, result_tt, result_du,
+  lp_result_acab, lp_result_pre_tt
 ) VALUES %s
 ON CONFLICT (project_id, isometrico, spool, junta) DO UPDATE SET
-  status      = EXCLUDED.status,
-  material    = COALESCE(EXCLUDED.material, joints.material),
-  diameter_mm = COALESCE(EXCLUDED.diameter_mm, joints.diameter_mm),
-  requires_tt = EXCLUDED.requires_tt,
-  is_repair   = EXCLUDED.is_repair,
-  dt_soldagem = COALESCE(EXCLUDED.dt_soldagem, joints.dt_soldagem),
-  dt_acoplamento = COALESCE(EXCLUDED.dt_acoplamento, joints.dt_acoplamento),
-  dt_lib_end  = COALESCE(EXCLUDED.dt_lib_end, joints.dt_lib_end),
-  dt_lp       = COALESCE(EXCLUDED.dt_lp, joints.dt_lp),
-  dt_rx       = COALESCE(EXCLUDED.dt_rx, joints.dt_rx),
-  dt_tt       = COALESCE(EXCLUDED.dt_tt, joints.dt_tt),
-  result_rx   = COALESCE(EXCLUDED.result_rx, joints.result_rx),
-  result_lp   = COALESCE(EXCLUDED.result_lp, joints.result_lp),
-  result_vs   = COALESCE(EXCLUDED.result_vs, joints.result_vs),
-  result_tt   = COALESCE(EXCLUDED.result_tt, joints.result_tt),
-  updated_at  = NOW()
+  status           = EXCLUDED.status,
+  material         = COALESCE(EXCLUDED.material, joints.material),
+  diameter_mm      = COALESCE(EXCLUDED.diameter_mm, joints.diameter_mm),
+  requires_tt      = EXCLUDED.requires_tt,
+  is_repair        = EXCLUDED.is_repair,
+  welder_root_sin  = COALESCE(EXCLUDED.welder_root_sin, joints.welder_root_sin),
+  welder_fill_sin  = COALESCE(EXCLUDED.welder_fill_sin, joints.welder_fill_sin),
+  proc_raiz        = COALESCE(EXCLUDED.proc_raiz, joints.proc_raiz),
+  proc_ench        = COALESCE(EXCLUDED.proc_ench, joints.proc_ench),
+  lt_raiz          = COALESCE(EXCLUDED.lt_raiz, joints.lt_raiz),
+  lt_ench          = COALESCE(EXCLUDED.lt_ench, joints.lt_ench),
+  ndt_method       = COALESCE(EXCLUDED.ndt_method, joints.ndt_method),
+  manufacturer     = COALESCE(EXCLUDED.manufacturer, joints.manufacturer),
+  fluid            = COALESCE(EXCLUDED.fluid, joints.fluid),
+  obs              = COALESCE(EXCLUDED.obs, joints.obs),
+  dt_soldagem      = COALESCE(EXCLUDED.dt_soldagem, joints.dt_soldagem),
+  dt_soldagem_r1   = COALESCE(EXCLUDED.dt_soldagem_r1, joints.dt_soldagem_r1),
+  dt_soldagem_r2   = COALESCE(EXCLUDED.dt_soldagem_r2, joints.dt_soldagem_r2),
+  dt_acoplamento   = COALESCE(EXCLUDED.dt_acoplamento, joints.dt_acoplamento),
+  dt_lib_end       = COALESCE(EXCLUDED.dt_lib_end, joints.dt_lib_end),
+  dt_vs            = COALESCE(EXCLUDED.dt_vs, joints.dt_vs),
+  dt_tt            = COALESCE(EXCLUDED.dt_tt, joints.dt_tt),
+  dt_du            = COALESCE(EXCLUDED.dt_du, joints.dt_du),
+  dt_us            = COALESCE(EXCLUDED.dt_us, joints.dt_us),
+  dt_lp            = COALESCE(EXCLUDED.dt_lp, joints.dt_lp),
+  dt_rx            = COALESCE(EXCLUDED.dt_rx, joints.dt_rx),
+  result_rx        = COALESCE(EXCLUDED.result_rx, joints.result_rx),
+  result_lp        = COALESCE(EXCLUDED.result_lp, joints.result_lp),
+  result_vs        = COALESCE(EXCLUDED.result_vs, joints.result_vs),
+  result_us        = COALESCE(EXCLUDED.result_us, joints.result_us),
+  result_tt        = COALESCE(EXCLUDED.result_tt, joints.result_tt),
+  result_du        = COALESCE(EXCLUDED.result_du, joints.result_du),
+  lp_result_acab   = COALESCE(EXCLUDED.lp_result_acab, joints.lp_result_acab),
+  lp_result_pre_tt = COALESCE(EXCLUDED.lp_result_pre_tt, joints.lp_result_pre_tt),
+  updated_at       = NOW()
 """
