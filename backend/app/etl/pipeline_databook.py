@@ -27,7 +27,7 @@ def _date_delphi(df, col):
 
 # ── SOLDADORES ────────────────────────────────────────────────────────────────
 
-def run_welders(path: str, project_id: int, db) -> dict:
+def run_welders(path: str, project_id: int, db, progress_cb=None) -> dict:
     df = _read(path).dropna(subset=["SIN"]).copy()
 
     df["project_id"]        = project_id
@@ -50,7 +50,7 @@ def run_welders(path: str, project_id: int, db) -> dict:
             "diam_min_mm","thickness_max_mm","positions_qual","dt_qualification",
             "dt_requalification","disqualified","rt_repair_index"]
     records = [tuple(r) for r in df[COLS].replace({np.nan: None}).itertuples(index=False, name=None)]
-    inserted, errors = bulk_upsert(_WELDER_UPSERT, records, CHUNK)
+    inserted, errors = bulk_upsert(_WELDER_UPSERT, records, CHUNK, progress_cb)
     return {"inserted_updated": inserted, "errors": len(errors)}
 
 
@@ -68,7 +68,7 @@ ON CONFLICT (project_id, sin) DO UPDATE SET
 
 # ── LOTES RX ──────────────────────────────────────────────────────────────────
 
-def run_rt_lots(path: str, project_id: int, db) -> dict:
+def run_rt_lots(path: str, project_id: int, db, progress_cb=None) -> dict:
     df = _read(path).dropna(subset=["NUMLO"]).copy()
 
     df["project_id"]  = project_id
@@ -87,7 +87,7 @@ def run_rt_lots(path: str, project_id: int, db) -> dict:
     COLS = ["project_id","lot_number","isometrico","spool","junta",
             "diameter_mm","thickness_mm","result","film_lot","company","status_code"]
     records = [tuple(r) for r in df[COLS].replace({np.nan: None}).itertuples(index=False, name=None)]
-    inserted, errors = bulk_upsert(_RT_INSERT, records, CHUNK)
+    inserted, errors = bulk_upsert(_RT_INSERT, records, CHUNK, progress_cb)
     return {"inserted_updated": inserted, "errors": len(errors)}
 
 
@@ -101,7 +101,7 @@ ON CONFLICT DO NOTHING
 
 # ── NÃO-CONFORMIDADES ─────────────────────────────────────────────────────────
 
-def run_nonconformances(path: str, project_id: int, db) -> dict:
+def run_nonconformances(path: str, project_id: int, db, progress_cb=None) -> dict:
     df = _read(path).copy()
 
     df["project_id"]     = project_id
@@ -119,7 +119,7 @@ def run_nonconformances(path: str, project_id: int, db) -> dict:
     COLS = ["project_id","rnc_number","system_code","operation_code","description",
             "dt_generated","released","dt_released","released_by","badge_released"]
     records = [tuple(r) for r in df[COLS].replace({np.nan: None}).itertuples(index=False, name=None)]
-    inserted, errors = bulk_upsert(_INCONF_INSERT, records, CHUNK)
+    inserted, errors = bulk_upsert(_INCONF_INSERT, records, CHUNK, progress_cb)
     return {"inserted_updated": inserted, "errors": len(errors)}
 
 
@@ -133,7 +133,7 @@ ON CONFLICT DO NOTHING
 
 # ── RASTREABILIDADE DE MATERIAL ───────────────────────────────────────────────
 
-def run_material_traceability(path: str, project_id: int, db) -> dict:
+def run_material_traceability(path: str, project_id: int, db, progress_cb=None) -> dict:
     df = _read(path).dropna(subset=["HT_NUMBER"]).copy()
 
     df["project_id"]         = project_id
@@ -155,7 +155,7 @@ def run_material_traceability(path: str, project_id: int, db) -> dict:
             "fiscal_note","purchase_order","project_code","description",
             "diam_min_mm","diam_max_mm","certificate_num","inspection_result"]
     records = [tuple(r) for r in df[COLS].replace({np.nan: None}).itertuples(index=False, name=None)]
-    inserted, errors = bulk_upsert(_RASTMAT_UPSERT, records, CHUNK)
+    inserted, errors = bulk_upsert(_RASTMAT_UPSERT, records, CHUNK, progress_cb)
     return {"inserted_updated": inserted, "errors": len(errors)}
 
 
@@ -172,7 +172,7 @@ ON CONFLICT (project_id, heat_number) DO UPDATE SET
 
 # ── SNAPSHOTS DE PROGRESSO ────────────────────────────────────────────────────
 
-def run_progress_snapshots(path: str, project_id: int, db) -> dict:
+def run_progress_snapshots(path: str, project_id: int, db, progress_cb=None) -> dict:
     df = _read(path).dropna(subset=["DATA","UNI"]).copy()
 
     df["project_id"]   = project_id
@@ -191,7 +191,7 @@ def run_progress_snapshots(path: str, project_id: int, db) -> dict:
             "n_total","p_total","n_welded","n_released","n_hold",
             "n_pending_mat","n_cut","n_fitup","n_painted"]
     records = [tuple(r) for r in df[COLS].replace({np.nan: None}).itertuples(index=False, name=None)]
-    inserted, errors = bulk_upsert(_RESUMO_UPSERT, records, CHUNK)
+    inserted, errors = bulk_upsert(_RESUMO_UPSERT, records, CHUNK, progress_cb)
     return {"inserted_updated": inserted, "errors": len(errors)}
 
 

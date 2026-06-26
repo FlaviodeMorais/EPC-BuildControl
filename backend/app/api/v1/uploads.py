@@ -7,7 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from ...database import get_db, SessionLocal
 from ...api.deps import require_role
-from ...etl import orchestrator, pipeline_sgs, pipeline_mto, pipeline_valves, pipeline_joints
+from ...etl import pipeline_sgs, pipeline_mto, pipeline_valves, pipeline_joints, pipeline_databook
 
 UPLOAD_DIR = Path(__file__).resolve().parents[4] / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -104,7 +104,22 @@ def _run_etl(batch_id: int, project_id: int, file_type: str, path: str):
         elif file_type == "JOINTS":
             report = pipeline_joints.run_excel(path, project_id, db, progress_cb)
         elif file_type == "DATABOOK_FULL":
-            report = orchestrator.run_full(project_id, db)
+            fname = Path(path).name.upper()
+            if "SOLD" in fname:
+                report = pipeline_databook.run_welders(path, project_id, db, progress_cb)
+            elif "LOTERX" in fname or "LOTE" in fname:
+                report = pipeline_databook.run_rt_lots(path, project_id, db, progress_cb)
+            elif "INCONF" in fname:
+                report = pipeline_databook.run_nonconformances(path, project_id, db, progress_cb)
+            elif "RASTMAT" in fname:
+                report = pipeline_databook.run_material_traceability(path, project_id, db, progress_cb)
+            elif "RESUMO" in fname:
+                report = pipeline_databook.run_progress_snapshots(path, project_id, db, progress_cb)
+            elif "JUNTA" in fname:
+                report = pipeline_joints.run_csv(path, project_id, db)
+            else:
+                report = {"inserted_updated": 0, "errors": 0,
+                          "error_samples": [f"CSV não reconhecido: {Path(path).name}"]}
         else:
             report = {"inserted_updated": 0, "errors": 0}
 
