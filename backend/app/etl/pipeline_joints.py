@@ -102,19 +102,21 @@ def _load(df: pd.DataFrame, project_id: int, db, source: str, progress_cb=None) 
 
     records = df[cols].replace({np.nan: None}).to_dict("records")
     errors = []
+    inserted = 0
 
     for i in range(0, len(records), CHUNK):
         chunk = records[i:i+CHUNK]
         try:
             db.execute(text(_UPSERT_SQL), chunk)
             db.commit()
+            inserted += len(chunk)
         except Exception as e:
             db.rollback()
-            errors.append(f"chunk {i}: {e}")
+            errors.append(f"chunk {i}: {str(e)[:200]}")
         if progress_cb:
-            progress_cb(min(i + CHUNK, len(records)))
+            progress_cb(inserted)
 
-    return {"inserted_updated": len(records), "errors": len(errors), "error_samples": errors[:3]}
+    return {"inserted_updated": inserted, "errors": len(errors), "error_samples": errors[:3]}
 
 
 _UPSERT_SQL = """
