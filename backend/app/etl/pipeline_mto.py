@@ -65,6 +65,7 @@ def run(path: str, project_id: int, db, progress_cb=None) -> dict:
         if c not in df.columns:
             df[c] = None
 
+    df = df.drop_duplicates(subset=["material_code_alt", "isometrico", "spool_number_raw"])
     records = [tuple(r) for r in df[COLS].replace({np.nan: None}).itertuples(index=False, name=None)]
     inserted, errors = bulk_upsert(_INSERT_SQL, records, chunk_size=CHUNK, progress_cb=progress_cb)
     return {"inserted_updated": inserted, "errors": len(errors), "error_samples": errors[:5]}
