@@ -39,17 +39,44 @@ def run(path: str, project_id: int, db, progress_cb=None) -> dict:
 
     df["diameter_nom_mm"] = df["diameter_nom_in"].apply(_in_to_mm) if "diameter_nom_in" in df.columns else None
 
+    def _clean_str(v, maxlen):
+        if not v: return None
+        s = str(v)
+        # material_code_std: /prefixo/CODIGO → extrai CODIGO (após segunda /)
+        # Pipe Name e demais: remove / inicial
+        return s[:maxlen]
+
+    def _clean_code_std(v):
+        """Remove prefixo /xxx/ mantendo só o código: /M1_SCH40/C4B0010F01 → C4B0010F01"""
+        if not v: return None
+        s = str(v).strip()
+        if s.startswith('/'):
+            parts = s[1:].split('/', 1)
+            return parts[1][:150] if len(parts) > 1 else parts[0][:150]
+        return s[:150]
+
+    def _strip_leading_slash(v, maxlen):
+        if not v: return None
+        s = str(v).strip().lstrip('/')
+        return s[:maxlen] or None
+
     for col, m in [
         ("line_tag",100), ("item_3d_type",100),
         ("isometrico",30), ("spool_number_raw",50), ("iso_text",200),
-        ("material_spec",100), ("material_code_std",150), ("material_code_alt",150),
+        ("material_spec",100), ("material_code_alt",150),
         ("position",100),
     ]:
         if col in df.columns:
             df[col] = df[col].where(df[col].notna(), None).apply(
-                lambda v, ml=m: str(v)[:ml] if v else None)
+                lambda v, ml=m: _strip_leading_slash(v, ml))
         else:
             df[col] = None
+
+    if "material_code_std" in df.columns:
+        df["material_code_std"] = df["material_code_std"].where(
+            df["material_code_std"].notna(), None).apply(_clean_code_std)
+    else:
+        df["material_code_std"] = None
 
     df["description"] = df["description"].where(df["description"].notna(), None) if "description" in df.columns else None
     df["project_id"] = project_id
