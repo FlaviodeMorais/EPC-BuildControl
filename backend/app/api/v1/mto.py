@@ -38,17 +38,20 @@ def list_mto(
         params["scope"] = scope
     if search:
         filters.append(
-            "(description ILIKE :s OR material_code_std ILIKE :s OR material_code_alt ILIKE :s OR isometrico ILIKE :s)"
+            "(description ILIKE :s OR material_code_alt ILIKE :s"
+            " OR material_code_std ILIKE :s OR isometrico ILIKE :s OR item_3d_name ILIKE :s)"
         )
         params["s"] = f"%{search}%"
 
     where = " AND ".join(filters)
     rows = db.execute(text(f"""
-        SELECT id, material_code_alt, item_3d_type, description,
-               material_code_std, material_spec, diameter_nom_mm, weight_kg,
-               isometrico, spool_number_raw, scope, zone
+        SELECT id, material_code_alt, line_tag, item_3d_name, item_3d_type,
+               diameter_nom_mm, diameter_sec_mm, diameter_ter_mm,
+               pipe_length_m, description, material_spec, material_code_std,
+               position, elevation_m, weight_kg, surface_area_m2,
+               isometrico, iso_text, spool_number_raw, scope, zone
         FROM mto_items WHERE {where}
-        ORDER BY isometrico, item_3d_name
+        ORDER BY isometrico, material_code_alt
         LIMIT :limit OFFSET :offset
     """), params).mappings().all()
 

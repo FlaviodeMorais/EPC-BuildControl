@@ -27,27 +27,33 @@ def run(path: str, project_id: int, db, progress_cb=None) -> dict:
     df.rename(columns={k: v for k, v in MTO_MAP.items() if k in df.columns}, inplace=True)
     df = df.dropna(subset=["material_code_alt"]).copy()
 
-    # Numéricos
+    # Numéricos com conversão de unidade
     for src, dst, factor in [
-        ("pipe_length_mm","pipe_length_m", 1/1000),
-        ("elevation_mm","elevation_m", 1/1000),
+        ("pipe_length_mm", "pipe_length_m",   1/1000),
+        ("elevation_mm",   "elevation_m",      1/1000),
         ("surface_area_mm2","surface_area_m2", 1/1_000_000),
     ]:
-        df[dst] = pd.to_numeric(df.get(src, pd.Series(dtype=float)), errors="coerce") * factor if src in df.columns else None
+        df[dst] = pd.to_numeric(df[src], errors="coerce") * factor if src in df.columns else None
 
     if "weight_kg" in df.columns:
         df["weight_kg"] = pd.to_numeric(df["weight_kg"], errors="coerce")
 
-    # Diâmetros
-    for ci, co in [("diameter_nom_in","diameter_nom_mm"),("diameter_sec_in","diameter_sec_mm")]:
+    # Diâmetros pol. → mm
+    for ci, co in [("diameter_nom_in","diameter_nom_mm"),
+                   ("diameter_sec_in","diameter_sec_mm"),
+                   ("diameter_ter_in","diameter_ter_mm")]:
         df[co] = df[ci].apply(_in_to_mm) if ci in df.columns else None
 
-    # Strings
-    for col, m in [("isometrico",30),("spool_number_raw",50),
-                   ("item_3d_type",100),("material_spec",100),("material_code_std",150),
-                   ("material_code_alt",150),("position",100),("scope",50),("zone",100)]:
+    # Strings truncadas
+    for col, m in [
+        ("line_tag",100), ("item_3d_name",200), ("item_3d_type",100),
+        ("isometrico",30), ("spool_number_raw",50), ("iso_text",200),
+        ("material_spec",100), ("material_code_std",150), ("material_code_alt",150),
+        ("position",100), ("scope",50), ("zone",100),
+    ]:
         if col in df.columns:
-            df[col] = df[col].where(df[col].notna(), None).apply(lambda v, ml=m: str(v)[:ml] if v else None)
+            df[col] = df[col].where(df[col].notna(), None).apply(
+                lambda v, ml=m: str(v)[:ml] if v else None)
         else:
             df[col] = None
 
@@ -58,11 +64,14 @@ def run(path: str, project_id: int, db, progress_cb=None) -> dict:
 
     df["project_id"] = project_id
 
-    COLS = ["project_id","isometrico","spool_number_raw","item_3d_type",
-            "description","material_spec","material_code_std","material_code_alt",
-            "diameter_nom_mm","diameter_sec_mm","pipe_length_m","elevation_m",
-            "weight_kg","surface_area_m2","position","scope","zone"]
-
+    COLS = [
+        "project_id", "line_tag", "item_3d_name", "item_3d_type",
+        "isometrico", "spool_number_raw", "iso_text",
+        "description", "material_spec", "material_code_std", "material_code_alt",
+        "diameter_nom_mm", "diameter_sec_mm", "diameter_ter_mm",
+        "pipe_length_m", "elevation_m", "weight_kg", "surface_area_m2",
+        "position", "scope", "zone",
+    ]
     for c in COLS:
         if c not in df.columns:
             df[c] = None
@@ -73,9 +82,11 @@ def run(path: str, project_id: int, db, progress_cb=None) -> dict:
 
 
 _INSERT_SQL = """
-INSERT INTO mto_items (project_id, isometrico, spool_number_raw,
-  item_3d_type, description, material_spec,
-  material_code_std, material_code_alt, diameter_nom_mm, diameter_sec_mm,
+INSERT INTO mto_items (
+  project_id, line_tag, item_3d_name, item_3d_type,
+  isometrico, spool_number_raw, iso_text,
+  description, material_spec, material_code_std, material_code_alt,
+  diameter_nom_mm, diameter_sec_mm, diameter_ter_mm,
   pipe_length_m, elevation_m, weight_kg, surface_area_m2,
   position, scope, zone)
 VALUES %s

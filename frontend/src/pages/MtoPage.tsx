@@ -9,6 +9,9 @@ const TYPES = [
   'CAP','COUPLING','OLET','SUPPORT',
 ]
 
+const fmt = (v: number | null, dec = 2) =>
+  v == null ? '—' : v.toLocaleString('pt-BR', { maximumFractionDigits: dec })
+
 export default function MtoPage() {
   const [type, setType]     = useState('')
   const [scope, setScope]   = useState('')
@@ -36,7 +39,6 @@ export default function MtoPage() {
         <span className="text-sm text-gray-500">{total.toLocaleString('pt-BR')} itens</span>
       </div>
 
-      {/* Filtros */}
       <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-3 flex flex-wrap gap-3">
         <input type="text" placeholder="Isométrico, código ou descrição..." value={search}
           onChange={e => { setSearch(e.target.value); setPage(1) }}
@@ -55,43 +57,54 @@ export default function MtoPage() {
         </select>
       </div>
 
-      {/* Tabela */}
       <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm whitespace-nowrap">
           <thead className="bg-gray-50 border-b">
             <tr className="text-left text-xs text-gray-500">
               <th className="px-3 py-2">ID</th>
-              <th className="px-3 py-2">Tipo</th>
-              <th className="px-3 py-2">Descrição</th>
-              <th className="px-3 py-2">Cód. Material</th>
+              <th className="px-3 py-2">Pipe Name</th>
+              <th className="px-3 py-2">3D Item Name</th>
+              <th className="px-3 py-2">3D Type</th>
+              <th className="px-3 py-2 text-right">Ø1 mm</th>
+              <th className="px-3 py-2 text-right">Ø2 mm</th>
+              <th className="px-3 py-2 text-right">Ø3 mm</th>
+              <th className="px-3 py-2 text-right">Comp. m</th>
+              <th className="px-3 py-2">Descritivo</th>
               <th className="px-3 py-2">Espec.</th>
-              <th className="px-3 py-2 text-right">Ø mm</th>
+              <th className="px-3 py-2">Cód. Padrão</th>
+              <th className="px-3 py-2">Posição</th>
+              <th className="px-3 py-2 text-right">Elev. m</th>
               <th className="px-3 py-2 text-right">Peso kg</th>
+              <th className="px-3 py-2 text-right">Sup. m²</th>
               <th className="px-3 py-2">Isométrico</th>
+              <th className="px-3 py-2">Texto Iso.</th>
               <th className="px-3 py-2">Spool</th>
-              <th className="px-3 py-2">Escopo</th>
             </tr>
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan={10} className="text-center py-8 text-gray-400">Carregando...</td></tr>
+              <tr><td colSpan={18} className="text-center py-8 text-gray-400">Carregando...</td></tr>
             )}
             {data?.data.map(item => (
               <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50">
                 <td className="px-3 py-1.5 font-mono text-xs text-blue-700">{item.material_code_alt}</td>
+                <td className="px-3 py-1.5 font-mono text-xs">{item.line_tag}</td>
+                <td className="px-3 py-1.5 font-mono text-xs">{item.item_3d_name}</td>
                 <td className="px-3 py-1.5 text-xs">{item.item_3d_type}</td>
-                <td className="px-3 py-1.5 text-xs text-gray-600 max-w-xs truncate" title={item.description}>
-                  {item.description}
-                </td>
-                <td className="px-3 py-1.5 font-mono text-xs">{item.material_code_std}</td>
+                <td className="px-3 py-1.5 text-right text-xs">{fmt(item.diameter_nom_mm)}</td>
+                <td className="px-3 py-1.5 text-right text-xs">{fmt(item.diameter_sec_mm)}</td>
+                <td className="px-3 py-1.5 text-right text-xs">{fmt(item.diameter_ter_mm)}</td>
+                <td className="px-3 py-1.5 text-right text-xs">{fmt(item.pipe_length_m, 3)}</td>
+                <td className="px-3 py-1.5 text-xs text-gray-600 max-w-xs truncate" title={item.description ?? ''}>{item.description}</td>
                 <td className="px-3 py-1.5 text-xs">{item.material_spec}</td>
-                <td className="px-3 py-1.5 text-right text-xs">{item.diameter_nom_mm ?? '—'}</td>
-                <td className="px-3 py-1.5 text-right text-xs">{item.weight_kg?.toLocaleString('pt-BR') ?? '—'}</td>
+                <td className="px-3 py-1.5 font-mono text-xs">{item.material_code_std}</td>
+                <td className="px-3 py-1.5 text-xs">{item.position}</td>
+                <td className="px-3 py-1.5 text-right text-xs">{fmt(item.elevation_m, 3)}</td>
+                <td className="px-3 py-1.5 text-right text-xs">{fmt(item.weight_kg)}</td>
+                <td className="px-3 py-1.5 text-right text-xs">{fmt(item.surface_area_m2, 4)}</td>
                 <td className="px-3 py-1.5 font-mono text-xs">{item.isometrico}</td>
+                <td className="px-3 py-1.5 text-xs">{item.iso_text}</td>
                 <td className="px-3 py-1.5 font-mono text-xs">{item.spool_number_raw}</td>
-                <td className="px-3 py-1.5 text-xs">
-                  <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-xs">{item.scope}</span>
-                </td>
               </tr>
             ))}
           </tbody>

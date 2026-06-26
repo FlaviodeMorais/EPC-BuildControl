@@ -3,14 +3,23 @@ import type { PagedResponse } from '../types'
 
 export interface MtoItem {
   id: number
-  item_3d_type: string
-  description: string
   material_code_alt: string
-  material_code_std: string
+  line_tag: string
+  item_3d_name: string
+  item_3d_type: string
+  diameter_nom_mm: number | null
+  diameter_sec_mm: number | null
+  diameter_ter_mm: number | null
+  pipe_length_m: number | null
+  description: string
   material_spec: string
-  diameter_nom_mm: number
-  weight_kg: number
+  material_code_std: string
+  position: string
+  elevation_m: number | null
+  weight_kg: number | null
+  surface_area_m2: number | null
   isometrico: string
+  iso_text: string
   spool_number_raw: string
   scope: string
   zone: string
