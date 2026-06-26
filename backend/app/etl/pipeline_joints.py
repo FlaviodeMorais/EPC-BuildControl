@@ -47,6 +47,7 @@ def run_csv(path: str, project_id: int, db) -> dict:
 def _load(df: pd.DataFrame, project_id: int, db, source: str, progress_cb=None) -> dict:
     df = df.dropna(subset=["isometrico","spool","junta"]).copy()
     df = df[df["isometrico"].str.strip() != ""]
+    df = df.drop_duplicates(subset=["isometrico","spool","junta"])
 
     # Status
     src = df.get("status_raw", df.get("sger", pd.Series(None, index=df.index)))

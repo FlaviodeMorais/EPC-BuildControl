@@ -36,7 +36,17 @@ def _num(df, col):
 
 
 def _date_delphi(df, col):
-    return df[col].apply(delphi_date) if col in df.columns else pd.Series(None, index=df.index)
+    """Converte coluna: tenta ordinal Python (Paradox CSV) ou Delphi (xlsx)."""
+    from datetime import date as _date
+    def _parse(v):
+        try:
+            n = int(float(v))
+            if n <= 0: return None
+            # Valores > 600000 são ordinals Python (2014 ≈ 735000); < 100000 são Delphi
+            return _date.fromordinal(n) if n > 600000 else delphi_date(n)
+        except (TypeError, ValueError, OverflowError):
+            return None
+    return df[col].apply(_parse) if col in df.columns else pd.Series(None, index=df.index)
 
 
 # ── SOLDADORES ────────────────────────────────────────────────────────────────
@@ -63,6 +73,7 @@ def run_welders(path: str, project_id: int, db, progress_cb=None) -> dict:
     COLS = ["project_id","sin","name","company","process","p_number","f_number",
             "diam_min_mm","thickness_max_mm","positions_qual","dt_qualification",
             "dt_requalification","disqualified","rt_repair_index"]
+    df = df.drop_duplicates(subset=["sin"])
     records = [tuple(r) for r in df[COLS].replace({np.nan: None}).itertuples(index=False, name=None)]
     inserted, errors = bulk_upsert(_WELDER_UPSERT, records, CHUNK, progress_cb)
     return {"inserted_updated": inserted, "errors": len(errors)}
@@ -168,6 +179,7 @@ def run_material_traceability(path: str, project_id: int, db, progress_cb=None) 
     COLS = ["project_id","heat_number","nrir","nrir_year","supplier","contract",
             "fiscal_note","purchase_order","project_code","description",
             "diam_min_mm","diam_max_mm","certificate_num","inspection_result"]
+    df = df.drop_duplicates(subset=["heat_number"])
     records = [tuple(r) for r in df[COLS].replace({np.nan: None}).itertuples(index=False, name=None)]
     inserted, errors = bulk_upsert(_RASTMAT_UPSERT, records, CHUNK, progress_cb)
     return {"inserted_updated": inserted, "errors": len(errors)}
