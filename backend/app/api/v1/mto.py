@@ -33,23 +33,20 @@ def list_mto(
     if isometrico:
         filters.append("isometrico ILIKE :iso")
         params["iso"] = f"%{isometrico}%"
-    if scope:
-        filters.append("scope = :scope")
-        params["scope"] = scope
     if search:
         filters.append(
             "(description ILIKE :s OR material_code_alt ILIKE :s"
-            " OR material_code_std ILIKE :s OR isometrico ILIKE :s OR item_3d_name ILIKE :s)"
+            " OR material_code_std ILIKE :s OR isometrico ILIKE :s)"
         )
         params["s"] = f"%{search}%"
 
     where = " AND ".join(filters)
     rows = db.execute(text(f"""
-        SELECT id, material_code_alt, line_tag, item_3d_name, item_3d_type,
-               diameter_nom_mm, diameter_sec_mm, diameter_ter_mm,
-               pipe_length_m, description, material_spec, material_code_std,
+        SELECT id, line_tag, item_3d_type, diameter_nom_mm,
+               pipe_length_m, description, material_spec,
+               material_code_std, material_code_alt,
                position, elevation_m, weight_kg, surface_area_m2,
-               isometrico, iso_text, spool_number_raw, scope, zone
+               isometrico, iso_text, spool_number_raw
         FROM mto_items WHERE {where}
         ORDER BY isometrico, material_code_alt
         LIMIT :limit OFFSET :offset
@@ -61,3 +58,13 @@ def list_mto(
     ).scalar()
 
     return {"total": total, "page": page, "page_size": page_size, "data": list(rows)}
+
+
+@router.get("/types")
+def list_types(project_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+    rows = db.execute(text("""
+        SELECT DISTINCT item_3d_type FROM mto_items
+        WHERE project_id = :pid AND item_3d_type IS NOT NULL
+        ORDER BY item_3d_type
+    """), {"pid": project_id}).scalars().all()
+    return rows

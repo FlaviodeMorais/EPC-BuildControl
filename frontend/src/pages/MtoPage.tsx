@@ -1,28 +1,25 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getMtoItems } from '../api/mto'
+import { getMtoItems, getMtoTypes } from '../api/mto'
 
 const PROJECT_ID = 1
-
-const TYPES = [
-  'PIPE','FLANGE','ELBOW','TEE','REDUCER','VALVE',
-  'CAP','COUPLING','OLET','SUPPORT',
-]
-
 const fmt = (v: number | null, dec = 2) =>
   v == null ? '—' : v.toLocaleString('pt-BR', { maximumFractionDigits: dec })
 
 export default function MtoPage() {
   const [type, setType]     = useState('')
-  const [scope, setScope]   = useState('')
   const [search, setSearch] = useState('')
   const [page, setPage]     = useState(1)
 
+  const { data: types = [] } = useQuery({
+    queryKey: ['mto-types'],
+    queryFn: () => getMtoTypes(PROJECT_ID),
+  })
+
   const { data, isLoading } = useQuery({
-    queryKey: ['mto', type, scope, search, page],
+    queryKey: ['mto', type, search, page],
     queryFn: () => getMtoItems(PROJECT_ID, {
       item_3d_type: type || undefined,
-      scope: scope || undefined,
       search: search || undefined,
       page,
       page_size: 100,
@@ -46,14 +43,7 @@ export default function MtoPage() {
         <select value={type} onChange={e => { setType(e.target.value); setPage(1) }}
           className="border border-gray-200 rounded px-3 py-1.5 text-sm">
           <option value="">Todos os tipos</option>
-          {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <select value={scope} onChange={e => { setScope(e.target.value); setPage(1) }}
-          className="border border-gray-200 rounded px-3 py-1.5 text-sm">
-          <option value="">Todos os escopos</option>
-          <option value="SHOP">SHOP</option>
-          <option value="FIELD">FIELD</option>
-          <option value="VENDOR">VENDOR</option>
+          {types.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
       </div>
 
@@ -63,11 +53,8 @@ export default function MtoPage() {
             <tr className="text-left text-xs text-gray-500">
               <th className="px-3 py-2">ID</th>
               <th className="px-3 py-2">Pipe Name</th>
-              <th className="px-3 py-2">3D Item Name</th>
               <th className="px-3 py-2">3D Type</th>
               <th className="px-3 py-2 text-right">Ø1 mm</th>
-              <th className="px-3 py-2 text-right">Ø2 mm</th>
-              <th className="px-3 py-2 text-right">Ø3 mm</th>
               <th className="px-3 py-2 text-right">Comp. m</th>
               <th className="px-3 py-2">Descritivo</th>
               <th className="px-3 py-2">Espec.</th>
@@ -83,17 +70,14 @@ export default function MtoPage() {
           </thead>
           <tbody>
             {isLoading && (
-              <tr><td colSpan={18} className="text-center py-8 text-gray-400">Carregando...</td></tr>
+              <tr><td colSpan={15} className="text-center py-8 text-gray-400">Carregando...</td></tr>
             )}
             {data?.data.map(item => (
               <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50">
                 <td className="px-3 py-1.5 font-mono text-xs text-blue-700">{item.material_code_alt}</td>
                 <td className="px-3 py-1.5 font-mono text-xs">{item.line_tag}</td>
-                <td className="px-3 py-1.5 font-mono text-xs">{item.item_3d_name}</td>
                 <td className="px-3 py-1.5 text-xs">{item.item_3d_type}</td>
                 <td className="px-3 py-1.5 text-right text-xs">{fmt(item.diameter_nom_mm)}</td>
-                <td className="px-3 py-1.5 text-right text-xs">{fmt(item.diameter_sec_mm)}</td>
-                <td className="px-3 py-1.5 text-right text-xs">{fmt(item.diameter_ter_mm)}</td>
                 <td className="px-3 py-1.5 text-right text-xs">{fmt(item.pipe_length_m, 3)}</td>
                 <td className="px-3 py-1.5 text-xs text-gray-600 max-w-xs truncate" title={item.description ?? ''}>{item.description}</td>
                 <td className="px-3 py-1.5 text-xs">{item.material_spec}</td>
