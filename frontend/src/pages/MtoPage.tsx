@@ -54,7 +54,7 @@ export default function MtoPage() {
               <th className="px-3 py-2">ID</th>
               <th className="px-3 py-2">Pipe Name</th>
               <th className="px-3 py-2">3D Type</th>
-              <th className="px-3 py-2 text-right">Ø1 mm</th>
+              <th className="px-3 py-2 text-right">Ø1 pol.</th>
               <th className="px-3 py-2 text-right">Comp. m</th>
               <th className="px-3 py-2">Descritivo</th>
               <th className="px-3 py-2">Espec.</th>
@@ -77,7 +77,7 @@ export default function MtoPage() {
                 <td className="px-3 py-1.5 font-mono text-xs text-blue-700">{item.material_code_alt}</td>
                 <td className="px-3 py-1.5 font-mono text-xs">{item.line_tag}</td>
                 <td className="px-3 py-1.5 text-xs">{item.item_3d_type}</td>
-                <td className="px-3 py-1.5 text-right text-xs">{fmt(item.diameter_nom_mm)}</td>
+                <td className="px-3 py-1.5 text-right text-xs">{item.diameter_nom_mm != null ? fmt(item.diameter_nom_mm / 25.4, 3) : '—'}</td>
                 <td className="px-3 py-1.5 text-right text-xs">{fmt(item.pipe_length_m, 3)}</td>
                 <td className="px-3 py-1.5 text-xs text-gray-600 max-w-xs truncate" title={item.description ?? ''}>{item.description}</td>
                 <td className="px-3 py-1.5 text-xs">{item.material_spec}</td>

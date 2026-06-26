@@ -8,11 +8,15 @@ from .bulk import bulk_upsert
 CHUNK = 5000
 
 
+def _strip_bom(s: str) -> str:
+    return s.encode("utf-8").lstrip(b"\xef\xbb\xbf").decode("utf-8").strip()
+
+
 def _read(path: str) -> pd.DataFrame:
     for enc in ("utf-8-sig", "latin-1", "cp1252"):
         try:
             df = pd.read_csv(path, dtype=str, encoding=enc, on_bad_lines="skip")
-            df.columns = [c.lstrip("﻿").strip() for c in df.columns]
+            df.columns = [_strip_bom(c) for c in df.columns]
             return df
         except UnicodeDecodeError:
             continue

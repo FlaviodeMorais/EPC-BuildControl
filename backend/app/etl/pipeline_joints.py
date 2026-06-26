@@ -23,7 +23,7 @@ def run_csv(path: str, project_id: int, db) -> dict:
             break
         except UnicodeDecodeError:
             continue
-    df.columns = [c.lstrip("﻿").strip() for c in df.columns]
+    df.columns = [c.encode("utf-8").lstrip(b"\xef\xbb\xbf").decode("utf-8").strip() for c in df.columns]
     paradox_map = {
         "Isometrico":"isometrico","Spool":"spool","Junta":"junta",
         "CBTP":"joint_type","CBDI":"diameter_mm","CBESP":"thickness_mm",
