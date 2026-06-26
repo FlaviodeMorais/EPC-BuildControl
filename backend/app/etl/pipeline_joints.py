@@ -1,6 +1,7 @@
-"""ETL: MAPA_JUNTA xlsb + JUNTAS.csv → tabela joints. Bulk insert."""
+"""ETL: MAPA_JUNTA xlsb → tabela joints. Vectorized pandas + bulk upsert."""
 
 import pandas as pd
+import numpy as np
 from sqlalchemy import text
 from .column_maps import JOINTS_EXCEL_MAP, SGER_TO_STATUS
 from .utils import clean_str, safe_numeric, delphi_date, normalize_sger
@@ -37,57 +38,81 @@ def run_csv(path: str, project_id: int, db) -> dict:
 
 
 def _load(df: pd.DataFrame, project_id: int, db, source: str, progress_cb=None) -> dict:
-    df = df.dropna(subset=["isometrico", "spool", "junta"])
+    df = df.dropna(subset=["isometrico", "spool", "junta"]).copy()
     df = df[df["isometrico"].str.strip() != ""]
 
-    records = []
+    # Status vectorizado
+    status_src = df.get("status_raw", df.get("sger", pd.Series(None, index=df.index)))
+    df["status"] = status_src.apply(
+        lambda v: SGER_TO_STATUS.get(normalize_sger(v), "01_NAO_INICIADA")
+    )
+
+    # is_repair vectorizado
+    junta_col = df["junta"].fillna("").str.strip()
+    df["is_repair"] = junta_col.str.upper().str.match(r'^R\d+$')
+
+    # Booleanos
+    for col in ["requires_tt", "requires_ut"]:
+        if col in df.columns:
+            df[col] = ~df[col].fillna("0").astype(str).isin(["0","","N","None","False"])
+        else:
+            df[col] = False
+
+    # Numéricos
+    for col in ["diameter_mm", "thickness_mm"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # Datas
+    for col in DATE_COLS:
+        if col in df.columns:
+            df[col] = df[col].apply(lambda v: delphi_date(str(v)) if pd.notna(v) and str(v) not in ('','nan') else None)
+        else:
+            df[col] = None
+
+    # String cols
+    str_cols = {
+        "isometrico":30,"spool":10,"junta":10,"joint_type":5,
+        "material":2,"insp_level":1,"pressure_class":5,"sth":50,"ieis":20,
+        "heat_number_1":20,"heat_number_2":20,
+        "corrida_1":20,"corrida_2":20,"corrida_3":20,"corrida_4":20,
+    }
+    for col, maxlen in str_cols.items():
+        if col in df.columns:
+            df[col] = df[col].where(df[col].notna(), None).apply(
+                lambda v, m=maxlen: str(v)[:m] if v is not None else None
+            )
+        else:
+            df[col] = None
+
+    df["project_id"] = project_id
+    df["source"] = source
+
+    cols = [
+        "project_id","isometrico","spool","junta","joint_type","diameter_mm",
+        "diameter_in","thickness_mm","material","insp_level","pressure_class",
+        "requires_tt","requires_ut","is_repair","sth","ieis","status",
+        "heat_number_1","heat_number_2","corrida_1","corrida_2","corrida_3","corrida_4",
+        "source",
+    ] + DATE_COLS
+
+    for c in cols:
+        if c not in df.columns:
+            df[c] = None
+
+    records = df[cols].replace({np.nan: None}).to_dict("records")
     errors = []
 
-    for _, row in df.iterrows():
-        try:
-            status_code = normalize_sger(row.get("status_raw") or row.get("sger"))
-            status = SGER_TO_STATUS.get(status_code, "01_NAO_INICIADA")
-            junta_val = clean_str(row.get("junta"), 10) or ""
-            is_repair = junta_val.upper().startswith("R") and junta_val[1:].isdigit()
-
-            rec = {
-                "project_id":    project_id,
-                "isometrico":    clean_str(row.get("isometrico"), 30),
-                "spool":         clean_str(row.get("spool"), 10),
-                "junta":         junta_val,
-                "joint_type":    clean_str(row.get("joint_type"), 5),
-                "diameter_mm":   safe_numeric(row.get("diameter_mm")),
-                "diameter_in":   clean_str(row.get("diameter_in"), 10),
-                "thickness_mm":  safe_numeric(row.get("thickness_mm")),
-                "material":      clean_str(row.get("material"), 2),
-                "insp_level":    clean_str(row.get("insp_level"), 1),
-                "pressure_class":clean_str(row.get("pressure_class"), 5),
-                "requires_tt":   str(row.get("requires_tt", "0")) not in ("0","","N","None"),
-                "requires_ut":   str(row.get("requires_ut", "0")) not in ("0","","N","None"),
-                "is_repair":     is_repair,
-                "sth":           clean_str(row.get("sth"), 50),
-                "ieis":          clean_str(row.get("ieis"), 20),
-                "status":        status,
-                "heat_number_1": clean_str(row.get("heat_number_1"), 20),
-                "heat_number_2": clean_str(row.get("heat_number_2"), 20),
-                "corrida_1":     clean_str(row.get("corrida_1"), 20),
-                "corrida_2":     clean_str(row.get("corrida_2"), 20),
-                "corrida_3":     clean_str(row.get("corrida_3"), 20),
-                "corrida_4":     clean_str(row.get("corrida_4"), 20),
-                "source":        source,
-            }
-            for col in DATE_COLS:
-                if col not in rec:
-                    rec[col] = None
-            records.append(rec)
-        except Exception as e:
-            errors.append(str(e))
-
     for i in range(0, len(records), CHUNK):
-        db.execute(text(_UPSERT_SQL), records[i:i+CHUNK])
+        chunk = records[i:i+CHUNK]
+        try:
+            db.execute(text(_UPSERT_SQL), chunk)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            errors.append(f"chunk {i}: {e}")
         if progress_cb:
             progress_cb(min(i + CHUNK, len(records)))
-    db.commit()
 
     return {"inserted_updated": len(records), "errors": len(errors), "error_samples": errors[:3]}
 
