@@ -4,7 +4,6 @@ MTO_MAP = {
     "Area / Discipline":             "area_code",
     "ZONE":                          "zone",
     "Pipe Name":                     "line_tag",
-    "3D Item Name":                  "item_3d_name",
     "3D Type":                       "item_3d_type",
     "Diâmetro 1 (pol.)":             "diameter_nom_in",
     "Diâmetro 2 (pol.)":             "diameter_sec_in",

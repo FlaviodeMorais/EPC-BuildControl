@@ -25,7 +25,7 @@ def _in_to_mm(val: str | None) -> float | None:
 def run(path: str, project_id: int, db, progress_cb=None) -> dict:
     df = pd.read_excel(path, sheet_name=0, dtype=str)
     df.rename(columns={k: v for k, v in MTO_MAP.items() if k in df.columns}, inplace=True)
-    df = df.dropna(subset=["item_3d_name"]).copy()
+    df = df.dropna(subset=["material_code_alt"]).copy()
 
     # Numéricos
     for src, dst, factor in [
@@ -43,7 +43,7 @@ def run(path: str, project_id: int, db, progress_cb=None) -> dict:
         df[co] = df[ci].apply(_in_to_mm) if ci in df.columns else None
 
     # Strings
-    for col, m in [("isometrico",30),("spool_number_raw",50),("item_3d_name",200),
+    for col, m in [("isometrico",30),("spool_number_raw",50),
                    ("item_3d_type",100),("material_spec",100),("material_code_std",150),
                    ("material_code_alt",150),("position",100),("scope",50),("zone",100)]:
         if col in df.columns:
@@ -58,7 +58,7 @@ def run(path: str, project_id: int, db, progress_cb=None) -> dict:
 
     df["project_id"] = project_id
 
-    COLS = ["project_id","isometrico","spool_number_raw","item_3d_name","item_3d_type",
+    COLS = ["project_id","isometrico","spool_number_raw","item_3d_type",
             "description","material_spec","material_code_std","material_code_alt",
             "diameter_nom_mm","diameter_sec_mm","pipe_length_m","elevation_m",
             "weight_kg","surface_area_m2","position","scope","zone"]
@@ -74,7 +74,7 @@ def run(path: str, project_id: int, db, progress_cb=None) -> dict:
 
 _INSERT_SQL = """
 INSERT INTO mto_items (project_id, isometrico, spool_number_raw,
-  item_3d_name, item_3d_type, description, material_spec,
+  item_3d_type, description, material_spec,
   material_code_std, material_code_alt, diameter_nom_mm, diameter_sec_mm,
   pipe_length_m, elevation_m, weight_kg, surface_area_m2,
   position, scope, zone)

@@ -3,7 +3,6 @@ import type { PagedResponse } from '../types'
 
 export interface MtoItem {
   id: number
-  item_3d_name: string
   item_3d_type: string
   description: string
   material_code_alt: string
